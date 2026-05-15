@@ -16,6 +16,8 @@ import { LeadTable } from "@/components/LeadTable";
 import { LeadDetailDrawer } from "@/components/LeadDetailDrawer";
 import { LiveProductMeta } from "@/components/LiveProductMeta";
 
+const DASHBOARD_MAX_W = "mx-auto w-full max-w-[1320px]";
+
 function PrototypeNotice() {
   return (
     <div
@@ -103,7 +105,7 @@ export function LeadDashboard() {
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(139,92,246,0.08),transparent)]" />
 
       <header className="relative border-b border-white/[0.06] bg-[#0b0f14]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1366px] items-center justify-between px-5 py-3">
+        <div className={`flex ${DASHBOARD_MAX_W} items-center justify-between px-5 py-3.5 sm:px-6`}>
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30 ring-1 ring-white/10">
               <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -123,13 +125,13 @@ export function LeadDashboard() {
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-[1366px] px-5 py-5">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <main className={`relative ${DASHBOARD_MAX_W} px-5 py-6 sm:px-6 sm:py-7`}>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold tracking-tight text-white">
               Lead pipeline
             </h2>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-400">
               Recently funded startups — search, filter, and prioritize outreach.
             </p>
           </div>
@@ -145,15 +147,15 @@ export function LeadDashboard() {
           saved={summary.saved}
         />
 
-        <section className="mt-5 overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-xl shadow-black/20 ring-1 ring-slate-900/[0.06]">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-2">
+        <section className="mt-6 overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-xl shadow-black/20 ring-1 ring-slate-900/[0.06]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-5 py-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
               Lead list
             </h3>
             <LiveProductMeta verifiedCount={filteredLeads.length} />
           </div>
 
-          <div className="space-y-3 p-3">
+          <div className="space-y-4 p-4 sm:p-5">
             <LeadFilters
               search={search}
               onSearchChange={setSearch}

@@ -60,7 +60,7 @@ export function SummaryCards({ total, newThisWeek, highScore, saved }: SummaryCa
   const values = { total, newThisWeek, highScore, saved };
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
       {cards.map((card) => (
         <div
           key={card.key}

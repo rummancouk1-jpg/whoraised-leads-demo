@@ -19,30 +19,33 @@ interface LeadTableProps {
   onViewDetails: (lead: Lead) => void;
 }
 
-const ACTIONS_WIDTH = 210;
+const ACTIONS_WIDTH = 228;
 
 const thClass =
-  "whitespace-nowrap px-3 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500";
+  "whitespace-nowrap px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500";
 const tdClass =
-  "px-3 py-3 align-middle text-sm transition-colors duration-200 ease-out";
+  "px-4 py-3.5 align-middle text-sm leading-relaxed transition-colors duration-200 ease-out";
 
 const rowBase =
-  "group relative transition-all duration-200 ease-out hover:z-[1] hover:bg-gradient-to-r hover:from-indigo-50/70 hover:to-slate-50/50 hover:shadow-[inset_3px_0_0_0_rgb(99,102,241),0_1px_3px_0_rgb(15,23,42,0.04)]";
+  "group relative bg-white transition-all duration-200 ease-out hover:z-[1] hover:bg-indigo-50 hover:shadow-[inset_3px_0_0_0_rgb(99,102,241),0_1px_3px_0_rgb(15,23,42,0.04)]";
 
 const rowActive =
-  "z-[1] bg-gradient-to-r from-indigo-50/90 to-violet-50/40 shadow-[inset_3px_0_0_0_rgb(79,70,229),0_1px_4px_0_rgb(99,102,241,0.08)]";
+  "z-[1] bg-indigo-50 shadow-[inset_3px_0_0_0_rgb(79,70,229),0_1px_4px_0_rgb(99,102,241,0.08)]";
 
 const stickyActionsTdBase =
-  "sticky right-0 z-20 border-l border-slate-100 bg-white px-3 py-3 shadow-[-12px_0_24px_-12px_rgba(15,23,42,0.08)] transition-colors duration-200 ease-out group-hover:border-indigo-100/80 group-hover:bg-indigo-50/60";
+  "sticky right-0 z-40 isolate border-l border-slate-200 bg-white px-3 py-3.5 shadow-[-16px_0_24px_-12px_rgba(15,23,42,0.1)] transition-colors duration-200 ease-out group-hover:border-indigo-100 group-hover:bg-indigo-50";
 
 const stickyActionsTdActive =
-  "border-indigo-100/80 bg-indigo-50/60";
+  "border-indigo-100 bg-indigo-50";
+
+const stickyActionsTh =
+  "sticky right-0 z-40 isolate min-w-[228px] border-l border-slate-200 bg-slate-50 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 shadow-[-16px_0_24px_-12px_rgba(15,23,42,0.08)]";
 
 const iconBtnBase =
-  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200 ease-out";
+  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors duration-200 ease-out active:scale-[0.98]";
 
 const MailIcon = () => (
-  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -52,7 +55,7 @@ const MailIcon = () => (
 );
 
 const PhoneIcon = () => (
-  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -62,7 +65,7 @@ const PhoneIcon = () => (
 );
 
 const CheckIcon = () => (
-  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25}>
+  <svg className="icon-action-check-in h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
   </svg>
 );
@@ -84,16 +87,16 @@ function CopyIconAction({
   copied: boolean;
   onClick: () => void;
 }) {
-  const stateClass = copied
-    ? "text-emerald-600"
-    : "text-slate-500 hover:bg-slate-100 hover:text-slate-800";
+  const buttonClass = copied
+    ? "icon-action-copy-pulse border-emerald-300 bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/90"
+    : "border-slate-200/70 bg-white text-slate-400 hover:border-slate-300 hover:bg-slate-50 hover:text-indigo-600";
 
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={copied ? "Copied" : label}
-      className={`${iconBtnBase} ${stateClass}`}
+      className={`${iconBtnBase} ${buttonClass}`}
     >
       {copied ? <CheckIcon /> : kind === "email" ? <MailIcon /> : <PhoneIcon />}
       {copied && (
@@ -114,9 +117,9 @@ function SaveIconAction({
   saved: boolean;
   onClick: () => void;
 }) {
-  const stateClass = saved
-    ? "text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
-    : "text-slate-500 hover:bg-slate-100 hover:text-slate-800";
+  const buttonClass = saved
+    ? "border-indigo-300/80 bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200/60"
+    : "border-slate-200/70 bg-white text-slate-400 hover:border-slate-300 hover:bg-slate-50 hover:text-indigo-600";
 
   return (
     <button
@@ -124,14 +127,13 @@ function SaveIconAction({
       onClick={onClick}
       aria-label={label}
       aria-pressed={saved}
-      className={`${iconBtnBase} ${stateClass}`}
+      className={`${iconBtnBase} ${buttonClass}`}
     >
       <svg
-        className="h-4 w-4"
+        className={`h-3.5 w-3.5 transition-colors duration-200 ${saved ? "fill-current" : "fill-none"}`}
         viewBox="0 0 24 24"
-        fill={saved ? "currentColor" : "none"}
         stroke="currentColor"
-        strokeWidth={1.75}
+        strokeWidth={1.5}
       >
         <path
           strokeLinecap="round"
@@ -200,7 +202,7 @@ export function LeadTable({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]">
-      <div className="border-b border-slate-100 bg-slate-50/80 px-3 py-2">
+      <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           Lead records
         </p>
@@ -208,32 +210,28 @@ export function LeadTable({
 
       <div className="table-scroll-container relative max-w-full overflow-x-auto">
         <div
-          className="pointer-events-none absolute top-0 z-[5] h-full w-6 bg-gradient-to-r from-transparent to-white/40 transition-opacity duration-200"
+          className="table-actions-fade pointer-events-none absolute top-0 z-[35] h-full w-14"
           style={{ right: ACTIONS_WIDTH }}
           aria-hidden
         />
-        <table className="w-max min-w-full border-collapse text-left text-sm">
+        <table className="w-max border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/90">
-              <th className={`${thClass} min-w-[150px] max-w-[180px]`}>Company</th>
-              <th className={`${thClass} min-w-[130px]`}>Founder</th>
-              <th className={`${thClass} min-w-[64px]`}>Score</th>
-              <th className={`${thClass} min-w-[110px]`}>Industry</th>
-              <th className={`${thClass} min-w-[88px]`}>Round</th>
-              <th className={`${thClass} min-w-[72px]`}>Raised</th>
-              <th className={`${thClass} min-w-[88px]`}>Funded</th>
-              <th className={`${thClass} min-w-[100px] max-w-[130px]`}>Location</th>
-              <th className={`${thClass} min-w-[130px] max-w-[170px]`}>Email</th>
-              <th className={`${thClass} min-w-[110px] max-w-[130px]`}>Phone</th>
-              <th className={`${thClass} min-w-[80px]`}>Status</th>
-              <th
-                className="sticky right-0 z-20 min-w-[210px] border-l border-slate-200/90 bg-slate-50/95 px-3 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 shadow-[-12px_0_24px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm"
-              >
-                Actions
-              </th>
+              <th className={`${thClass} min-w-[152px]`}>Company</th>
+              <th className={`${thClass} min-w-[132px]`}>Founder</th>
+              <th className={`${thClass} min-w-[68px]`}>Score</th>
+              <th className={`${thClass} min-w-[112px]`}>Industry</th>
+              <th className={`${thClass} min-w-[92px]`}>Round</th>
+              <th className={`${thClass} min-w-[80px]`}>Raised</th>
+              <th className={`${thClass} min-w-[96px]`}>Funded</th>
+              <th className={`${thClass} min-w-[108px]`}>Location</th>
+              <th className={`${thClass} min-w-[200px]`}>Email</th>
+              <th className={`${thClass} min-w-[132px]`}>Phone</th>
+              <th className={`${thClass} min-w-[88px]`}>Status</th>
+              <th className={stickyActionsTh}>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100/90">
+          <tbody className="divide-y divide-slate-100">
             {leads.map((lead) => {
               const emailCopyId = `${lead.id}-email`;
               const phoneCopyId = `${lead.id}-phone`;
@@ -244,7 +242,7 @@ export function LeadTable({
                   key={lead.id}
                   className={`${rowBase} ${isActive ? rowActive : ""}`}
                 >
-                  <td className={`${tdClass} min-w-[150px] max-w-[180px] group-hover:text-slate-900`}>
+                  <td className={`${tdClass} min-w-[152px] group-hover:text-slate-900`}>
                     <div className={`font-semibold transition-colors duration-200 ${isActive ? "text-indigo-900" : "text-slate-900 group-hover:text-indigo-900"}`}>
                       {lead.companyName}
                     </div>
@@ -252,7 +250,7 @@ export function LeadTable({
                       {lead.employeeCount} employees
                     </p>
                   </td>
-                  <td className={tdClass}>
+                  <td className={`${tdClass} min-w-[132px]`}>
                     <p className="font-medium text-slate-800">{lead.founderName}</p>
                     <p className="line-clamp-1 text-xs text-slate-400">{lead.founderTitle}</p>
                   </td>
@@ -271,22 +269,16 @@ export function LeadTable({
                   <td className={`${tdClass} whitespace-nowrap text-slate-600`}>
                     {formatDate(lead.fundingDate)}
                   </td>
-                  <td className={`${tdClass} max-w-[130px] truncate text-slate-600`} title={lead.location}>
+                  <td className={`${tdClass} min-w-[108px] max-w-[140px] truncate text-slate-600`} title={lead.location}>
                     {lead.location}
                   </td>
-                  <td className={`${tdClass} max-w-[170px]`}>
-                    <span
-                      className="block cursor-help truncate text-slate-600 transition-colors hover:text-indigo-700"
-                      title={lead.email}
-                    >
+                  <td className={`${tdClass} min-w-[200px] whitespace-nowrap text-slate-600`}>
+                    <span className="block transition-colors hover:text-indigo-700">
                       {lead.email}
                     </span>
                   </td>
-                  <td className={`${tdClass} max-w-[130px]`}>
-                    <span
-                      className="block cursor-help truncate whitespace-nowrap text-slate-600 transition-colors hover:text-indigo-700"
-                      title={lead.phone}
-                    >
+                  <td className={`${tdClass} min-w-[132px] whitespace-nowrap text-slate-600`}>
+                    <span className="block transition-colors hover:text-indigo-700">
                       {lead.phone}
                     </span>
                   </td>
@@ -294,7 +286,7 @@ export function LeadTable({
                     <StatusBadge status={lead.status} />
                   </td>
                   <td
-                    className={`${stickyActionsTdBase} min-w-[210px] ${isActive ? stickyActionsTdActive : ""}`}
+                    className={`${stickyActionsTdBase} min-w-[228px] ${isActive ? stickyActionsTdActive : ""}`}
                   >
                     <div className="flex items-center justify-end gap-0.5">
                       <CopyIconAction
@@ -318,7 +310,7 @@ export function LeadTable({
                       <button
                         type="button"
                         onClick={() => onViewDetails(lead)}
-                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-indigo-600 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
+                        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-indigo-200/90 bg-white px-2.5 text-[11px] font-medium text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/80"
                       >
                         View details
                         <ArrowRightIcon />
