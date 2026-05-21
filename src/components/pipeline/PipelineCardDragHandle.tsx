@@ -10,7 +10,7 @@ export function PipelineCardDragHandle({ handleProps }: PipelineCardDragHandlePr
   return (
     <button
       type="button"
-      className={`shrink-0 rounded p-0.5 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-indigo-400/50 ${className ?? ""}`}
+      className={`shrink-0 rounded p-0.5 text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-slate-300 active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-indigo-400/40 ${className ?? ""}`}
       aria-label="Drag to move"
       onClick={(e) => e.stopPropagation()}
       {...rest}

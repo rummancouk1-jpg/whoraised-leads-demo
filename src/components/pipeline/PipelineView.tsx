@@ -61,7 +61,7 @@ export function PipelineView() {
           </p>
         </div>
 
-        <section className="pipeline-board-panel relative overflow-hidden rounded-xl border border-white/[0.07] bg-[#0d1118]/60 p-2.5 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.05] backdrop-blur-md sm:p-3">
+        <section className="pipeline-board-panel relative overflow-hidden rounded-xl border border-white/[0.07] bg-[#0d1118]/80 p-2.5 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-white/[0.05] sm:p-3">
           <div
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(99,102,241,0.06),transparent_55%)]"
             aria-hidden

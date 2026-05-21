@@ -46,7 +46,7 @@ export function PipelineDndColumn({
       data-pipeline-column={column.id}
       aria-label={`${column.title} column`}
     >
-      <header className="pipeline-column-header sticky top-0 z-20 rounded-t-xl border border-b-0 border-white/[0.07] bg-[#111820]/75 px-3 py-2.5 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] backdrop-blur-xl">
+      <header className="pipeline-column-header sticky top-0 z-20 rounded-t-xl border border-b-0 border-white/[0.07] bg-[#111820]/90 px-3 py-2.5 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] backdrop-blur-xl">
         <div
           className={`pointer-events-none absolute inset-0 rounded-t-xl bg-gradient-to-b ${theme.headerGlow} to-transparent opacity-80`}
           aria-hidden
@@ -80,9 +80,9 @@ export function PipelineDndColumn({
 
       <div
         ref={setNodeRef}
-        className={`pipeline-column-dropzone relative flex min-h-[160px] flex-1 flex-col rounded-b-xl border border-t-0 bg-[#0c1018]/40 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm transition-[border-color,box-shadow,ring-color] duration-200 ease-out ${
+        className={`pipeline-column-dropzone relative flex min-h-[160px] flex-1 flex-col rounded-b-xl border border-t-0 bg-[#0a0e14]/55 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-[border-color,box-shadow,ring-color] duration-200 ease-out ${
           showDropHighlight
-            ? `border-white/[0.12] ring-2 ring-inset ${theme.dropRing} ${theme.dropGlow}`
+            ? `border-white/[0.1] ring-1 ring-inset ${theme.dropRing}`
             : "border-white/[0.06] ring-1 ring-white/[0.04]"
         } ${isEmpty ? "" : "gap-1.5"}`}
         data-drop-target={column.id}

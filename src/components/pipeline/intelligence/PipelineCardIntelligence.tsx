@@ -9,11 +9,13 @@ export type IntelligenceDisplayMode = "full" | "compact" | "none";
 interface PipelineCardIntelligenceProps {
   context: LeadCrmContext;
   mode: IntelligenceDisplayMode;
+  surface?: "light" | "pipeline";
 }
 
 export function PipelineCardIntelligence({
   context,
   mode,
+  surface = "pipeline",
 }: PipelineCardIntelligenceProps) {
   if (mode === "none") return null;
 
@@ -22,10 +24,18 @@ export function PipelineCardIntelligence({
   return (
     <div className="pipeline-card-intelligence">
       <div className="mt-1.5">
-        <LeadIntelligenceStrip context={context} compact={compact} />
+        <LeadIntelligenceStrip
+          context={context}
+          compact={compact}
+          surface={surface}
+        />
       </div>
 
-      <LeadAiInsightPanel insight={context.aiInsight} compact={compact} />
+      <LeadAiInsightPanel
+        insight={context.aiInsight}
+        compact={compact}
+        surface={surface}
+      />
 
       {!compact ? (
         <>
@@ -34,7 +44,7 @@ export function PipelineCardIntelligence({
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <LeadNextActions actions={context.nextActions} />
+            <LeadNextActions actions={context.nextActions} surface={surface} />
           </div>
           <div className="group-hover/pipeline-card:hidden sm:hidden">
             {context.nextActions[0] ? (
@@ -44,7 +54,10 @@ export function PipelineCardIntelligence({
             ) : null}
           </div>
           <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-            <LeadActivityTimeline activities={context.activities} />
+            <LeadActivityTimeline
+              activities={context.activities}
+              surface={surface}
+            />
           </div>
         </>
       ) : null}

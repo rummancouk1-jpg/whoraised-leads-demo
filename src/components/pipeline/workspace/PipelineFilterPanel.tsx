@@ -51,7 +51,7 @@ export function PipelineFilterPanel() {
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-full z-30 mt-2 w-[min(100vw-2rem,300px)] rounded-lg border border-white/[0.1] bg-[#141a24]/95 p-3 shadow-xl shadow-black/40 ring-1 ring-white/[0.08] backdrop-blur-xl"
+      className="absolute right-0 top-full z-30 mt-2 w-[min(calc(100vw-2.5rem),300px)] max-sm:left-0 max-sm:right-0 max-sm:w-full rounded-lg border border-white/[0.1] bg-[#141a24]/98 p-3 shadow-xl shadow-black/50 ring-1 ring-white/[0.08] backdrop-blur-xl"
       role="dialog"
       aria-label="Pipeline filters"
     >
