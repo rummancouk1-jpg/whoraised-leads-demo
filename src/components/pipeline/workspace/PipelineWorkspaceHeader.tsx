@@ -25,16 +25,18 @@ export function PipelineWorkspaceHeader() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold tracking-tight text-white">
+            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-white">
               {activeViewLabel}
             </h2>
             {activeFilterCount > 0 ? (
-              <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-indigo-200/90 ring-1 ring-indigo-400/20">
+              <span className="rounded-full bg-indigo-500/12 px-2 py-0.5 text-[10px] font-medium tabular-nums text-indigo-200/90 ring-1 ring-inset ring-indigo-400/20">
                 +{activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"}
               </span>
             ) : null}
           </div>
-          <p className="mt-0.5 text-[10px] text-slate-500">{view.description}</p>
+          <p className="mt-1 text-[11px] leading-snug text-slate-500">
+            {view.description}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -85,13 +87,20 @@ export function PipelineWorkspaceHeader() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
-        <span>
-          Updated {lastUpdatedLabel} · {visibleCount} visible ·{" "}
-          {filteredHealth.hotLeads} hot
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px]">
+        <span className="text-slate-600">
+          <span className="text-slate-500">Updated</span>{" "}
+          <span className="tabular-nums text-slate-400">{lastUpdatedLabel}</span>
+          <span className="px-1.5 text-slate-700">·</span>
+          <span className="tabular-nums text-slate-300">{visibleCount}</span>{" "}
+          <span className="text-slate-500">visible</span>
+          <span className="px-1.5 text-slate-700">·</span>
+          <span className="tabular-nums text-slate-300">{filteredHealth.hotLeads}</span>{" "}
+          <span className="text-slate-500">hot</span>
         </span>
         <span className="hidden text-slate-600 md:inline">
-          <kbd className="rounded bg-white/[0.06] px-1">F</kbd> filters
+          <kbd className="rounded bg-white/[0.05] px-1 font-medium text-slate-400">F</kbd>{" "}
+          filters
         </span>
       </div>
 

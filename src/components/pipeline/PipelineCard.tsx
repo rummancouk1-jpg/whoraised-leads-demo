@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, PointerEventHandler, Ref } from "react";
 import type { Lead } from "@/types/lead";
 import type { LeadCrmContext } from "@/types/crm-workflow";
 import { formatCurrency } from "@/lib/lead-utils";
@@ -15,23 +15,35 @@ import type { LeadWorkspaceMeta } from "@/types/pipeline-workspace";
 
 export type PipelineCardVariant = "default" | "overlay" | "ghost";
 
+interface BodyDragProps {
+  listeners?: {
+    onPointerDown?: PointerEventHandler<HTMLElement>;
+  } & Record<string, unknown>;
+}
+
+interface HandleProps {
+  attributes?: HTMLAttributes<HTMLElement>;
+  setActivatorNode?: Ref<HTMLButtonElement>;
+}
+
 interface PipelineCardProps {
   lead: Lead;
   stageId: PipelineStage;
   variant?: PipelineCardVariant;
   crmContext?: LeadCrmContext;
   workspaceMeta?: LeadWorkspaceMeta;
-  dragHandleProps?: HTMLAttributes<HTMLElement>;
+  bodyDragProps?: BodyDragProps;
+  handleProps?: HandleProps;
   onOpen?: () => void;
 }
 
 const VARIANT_CLASS: Record<PipelineCardVariant, string> = {
   default:
-    "pipeline-card group/pipeline-card cursor-pointer rounded-[10px] border border-slate-200/60 bg-gradient-to-b from-white to-slate-50/80 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_0_0_1px_rgba(255,255,255,0.6)_inset] transition-[transform,box-shadow,border-color,background,opacity] duration-200 ease-out hover:-translate-y-0.5 hover:border-indigo-200/70 hover:from-white hover:to-white hover:shadow-[0_4px_14px_-2px_rgba(99,102,241,0.12),0_2px_6px_-2px_rgba(15,23,42,0.06)]",
+    "pipeline-card group/pipeline-card cursor-pointer rounded-[10px] border border-white/[0.07] bg-[#151a23] shadow-[0_1px_2px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.035)] transition-[box-shadow,border-color,background-color] duration-150 ease-out hover:border-white/[0.13] hover:bg-[#171c26] hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.04)] focus-visible:ring-2 focus-visible:ring-indigo-400/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[#0c1018]",
   overlay:
-    "pipeline-card--overlay cursor-grabbing rounded-[10px] border border-indigo-200/80 bg-white shadow-[0_12px_28px_-6px_rgba(99,102,241,0.22),0_4px_12px_-4px_rgba(15,23,42,0.12)] ring-1 ring-indigo-500/15",
+    "pipeline-card--overlay cursor-grabbing rounded-[10px] border border-white/[0.12] bg-[#181e28] shadow-[0_12px_28px_-6px_rgba(0,0,0,0.55),0_2px_4px_-2px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]",
   ghost:
-    "pipeline-card--ghost rounded-[10px] border border-dashed border-slate-200/50 bg-slate-50/40 opacity-60",
+    "pipeline-card--ghost rounded-[10px] border border-dashed border-white/[0.1] bg-[#12161d]/40",
 };
 
 function intelligenceMode(variant: PipelineCardVariant): IntelligenceDisplayMode {
@@ -46,11 +58,16 @@ export function PipelineCard({
   variant = "default",
   crmContext,
   workspaceMeta,
-  dragHandleProps,
+  bodyDragProps,
+  handleProps,
   onOpen,
 }: PipelineCardProps) {
   const mode = intelligenceMode(variant);
-  const isInteractive = variant === "default" && onOpen;
+  const isInteractive = variant === "default" && Boolean(onOpen);
+  const onDarkSurface = variant !== "ghost";
+  const bodyListeners = bodyDragProps?.listeners;
+  const handleAttributes = handleProps?.attributes;
+  const handleActivator = handleProps?.setActivatorNode;
 
   return (
     <article
@@ -64,17 +81,23 @@ export function PipelineCard({
           ? (e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onOpen();
+                onOpen?.();
               }
             }
           : undefined
       }
       tabIndex={isInteractive ? 0 : undefined}
       aria-label={isInteractive ? `Open ${lead.companyName} workspace` : undefined}
+      style={
+        variant === "default"
+          ? { touchAction: "none" }
+          : undefined
+      }
+      {...(bodyListeners ?? {})}
     >
       {variant === "default" ? (
         <div
-          className="pointer-events-none absolute inset-x-2.5 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent opacity-0 transition-opacity duration-200 group-hover/pipeline-card:opacity-100"
+          className="pointer-events-none absolute inset-x-2.5 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent opacity-0 transition-opacity duration-150 group-hover/pipeline-card:opacity-100"
           aria-hidden
         />
       ) : null}
@@ -84,16 +107,19 @@ export function PipelineCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-1">
-            <h4 className="truncate text-[13px] font-semibold leading-tight tracking-[-0.01em] text-slate-900">
+            <h4 className="truncate text-[13px] font-semibold leading-tight tracking-[-0.01em] text-slate-100">
               {lead.companyName}
             </h4>
             <div className="flex shrink-0 items-center gap-0.5">
-              {dragHandleProps ? (
-                <PipelineCardDragHandle handleProps={dragHandleProps} />
+              {handleProps ? (
+                <PipelineCardDragHandle
+                  ref={handleActivator}
+                  handleProps={handleAttributes ?? {}}
+                />
               ) : null}
               {lead.saved ? (
                 <span
-                  className="text-indigo-500/80"
+                  className="text-indigo-400/90"
                   title="Saved lead"
                   aria-label="Saved"
                 >
@@ -112,32 +138,39 @@ export function PipelineCard({
       </div>
 
       {crmContext ? (
-        <PipelineCardIntelligence context={crmContext} mode={mode} />
+        <PipelineCardIntelligence
+          context={crmContext}
+          mode={mode}
+          surface={onDarkSurface ? "pipeline" : "light"}
+        />
       ) : null}
 
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className="inline-flex max-w-[calc(100%-4rem)] truncate rounded-md bg-slate-100/80 px-1.5 py-px text-[10px] font-medium text-slate-600">
+      <div className="mt-1.5 flex items-center gap-1.5">
+        <span className="inline-flex max-w-[calc(100%-4rem)] truncate rounded-md bg-white/[0.05] px-1.5 py-px text-[10px] font-medium text-slate-300 ring-1 ring-inset ring-white/[0.05]">
           {lead.industry}
         </span>
         <span
-          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-50/90 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-slate-500 ring-1 ring-slate-200/50"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/[0.035] px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-slate-500 ring-1 ring-inset ring-white/[0.05]"
           title={lead.fundingRound}
         >
           {lead.fundingRound.replace("Series ", "S")}
         </span>
       </div>
 
-      <div className="mt-2 flex items-end justify-between gap-2 border-t border-slate-100/90 pt-2">
+      <div className="mt-2 flex items-end justify-between gap-2 border-t border-white/[0.05] pt-2">
         <div className="min-w-0">
-          <p className="text-[9px] font-medium uppercase tracking-wider text-slate-400">
+          <p className="text-[9px] font-medium uppercase tracking-[0.08em] text-slate-500">
             Raised
           </p>
-          <p className="text-[12px] font-semibold tabular-nums tracking-tight text-slate-900">
+          <p className="text-[13px] font-semibold tabular-nums tracking-tight text-slate-100">
             {formatCurrency(lead.amountRaised)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <PipelineScoreChip score={lead.leadScore} />
+          <PipelineScoreChip
+            score={lead.leadScore}
+            variant={onDarkSurface ? "pipeline" : "light"}
+          />
           {workspaceMeta && variant === "default" ? (
             <WorkspaceOwnerBadge meta={workspaceMeta} compact />
           ) : null}

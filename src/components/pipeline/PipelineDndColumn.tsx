@@ -46,23 +46,19 @@ export function PipelineDndColumn({
       data-pipeline-column={column.id}
       aria-label={`${column.title} column`}
     >
-      <header className="pipeline-column-header sticky top-0 z-20 rounded-t-xl border border-b-0 border-white/[0.07] bg-[#111820]/75 px-3 py-2.5 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] backdrop-blur-xl">
-        <div
-          className={`pointer-events-none absolute inset-0 rounded-t-xl bg-gradient-to-b ${theme.headerGlow} to-transparent opacity-80`}
-          aria-hidden
-        />
+      <header className="pipeline-column-header sticky top-0 z-20 rounded-t-xl border border-b-0 border-white/[0.06] bg-[#111820]/85 px-3 py-2 backdrop-blur-xl">
         <div className="relative flex items-center gap-2">
           <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.accent} shadow-sm`}
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.accent}`}
             aria-hidden
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-200">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-slate-200">
                 {column.title}
               </h3>
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ring-1 ring-inset ${theme.countBg}`}
+                className={`shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium tabular-nums ring-1 ring-inset ${theme.countBg}`}
               >
                 {leads.length}
               </span>
@@ -73,16 +69,16 @@ export function PipelineDndColumn({
           </div>
         </div>
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-white/[0.05]"
           aria-hidden
         />
       </header>
 
       <div
         ref={setNodeRef}
-        className={`pipeline-column-dropzone relative flex min-h-[160px] flex-1 flex-col rounded-b-xl border border-t-0 bg-[#0c1018]/40 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm transition-[border-color,box-shadow,ring-color] duration-200 ease-out ${
+        className={`pipeline-column-dropzone relative flex min-h-[160px] flex-1 flex-col rounded-b-xl border border-t-0 bg-[#0a0e14]/55 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-[border-color,box-shadow,ring-color] duration-200 ease-out ${
           showDropHighlight
-            ? `border-white/[0.12] ring-2 ring-inset ${theme.dropRing} ${theme.dropGlow}`
+            ? `border-white/[0.1] ring-1 ring-inset ${theme.dropRing}`
             : "border-white/[0.06] ring-1 ring-white/[0.04]"
         } ${isEmpty ? "" : "gap-1.5"}`}
         data-drop-target={column.id}

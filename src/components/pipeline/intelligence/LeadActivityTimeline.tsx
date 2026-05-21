@@ -2,19 +2,36 @@ import type { PipelineActivityEvent } from "@/types/crm-workflow";
 
 interface LeadActivityTimelineProps {
   activities: PipelineActivityEvent[];
+  surface?: "light" | "pipeline";
 }
 
-export function LeadActivityTimeline({ activities }: LeadActivityTimelineProps) {
+export function LeadActivityTimeline({
+  activities,
+  surface = "light",
+}: LeadActivityTimelineProps) {
   if (activities.length === 0) return null;
 
   const preview = activities.slice(0, 3);
+  const isPipeline = surface === "pipeline";
 
   return (
     <details className="pipeline-activity-details group/tl mt-1.5">
-      <summary className="cursor-pointer list-none text-[9px] font-medium uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-600 [&::-webkit-details-marker]:hidden">
+      <summary
+        className={`cursor-pointer list-none text-[9px] font-medium uppercase tracking-wider transition-colors [&::-webkit-details-marker]:hidden ${
+          isPipeline
+            ? "text-slate-500 hover:text-slate-300"
+            : "text-slate-400 hover:text-slate-600"
+        }`}
+      >
         <span className="inline-flex items-center gap-1">
           Activity
-          <span className="rounded bg-slate-100/90 px-1 py-px tabular-nums text-[8px] text-slate-500 ring-1 ring-slate-200/50">
+          <span
+            className={`rounded px-1 py-px tabular-nums text-[8px] ring-1 ring-inset ${
+              isPipeline
+                ? "bg-white/[0.06] text-slate-400 ring-white/[0.08]"
+                : "bg-slate-100/90 text-slate-500 ring-slate-200/50"
+            }`}
+          >
             {activities.length}
           </span>
           <svg
@@ -29,14 +46,24 @@ export function LeadActivityTimeline({ activities }: LeadActivityTimelineProps) 
           </svg>
         </span>
       </summary>
-      <ul className="mt-1.5 space-y-1 border-t border-slate-100/90 pt-1.5">
+      <ul
+        className={`mt-1.5 space-y-1 border-t pt-1.5 ${
+          isPipeline ? "border-white/[0.06]" : "border-slate-100/90"
+        }`}
+      >
         {preview.map((event) => (
           <li
             key={event.id}
             className="flex items-baseline justify-between gap-2 text-[10px] leading-snug"
           >
-            <span className="min-w-0 truncate text-slate-600">{event.label}</span>
-            <span className="shrink-0 tabular-nums text-slate-400">
+            <span
+              className={`min-w-0 truncate ${
+                isPipeline ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
+              {event.label}
+            </span>
+            <span className="shrink-0 tabular-nums text-slate-500">
               {event.relativeTime}
             </span>
           </li>
