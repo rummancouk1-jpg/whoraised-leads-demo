@@ -1,10 +1,18 @@
 "use client";
 
-import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   PointerSensor,
   closestCorners,
   useSensor,
@@ -47,11 +55,17 @@ interface PipelineDndBoardContentProps {
   setBoard: Dispatch<SetStateAction<PipelineBoardState>>;
 }
 
+interface ActiveRect {
+  width: number;
+  height: number;
+}
+
 function PipelineDndBoardContent({
   board,
   setBoard,
 }: PipelineDndBoardContentProps) {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const [activeRect, setActiveRect] = useState<ActiveRect | null>(null);
   const reducedMotion = usePrefersReducedMotion();
   const { recordStageChange, pulseStage } = usePipelineCrm();
   const { displayBoard, visibleCount } = usePipelineWorkspace();
@@ -62,7 +76,7 @@ function PipelineDndBoardContent({
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: { distance: 6 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -72,6 +86,20 @@ function PipelineDndBoardContent({
   const activeStage = activeLead
     ? findLeadStage(board, activeLead.id)
     : null;
+
+  // Expose the source card's dimensions to placeholder slots via CSS vars,
+  // so the dashed source-slot keeps the column height stable mid-drag.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (activeRect) {
+      root.style.setProperty("--pipeline-card-h", `${Math.round(activeRect.height)}px`);
+      root.style.setProperty("--pipeline-card-w", `${Math.round(activeRect.width)}px`);
+    } else {
+      root.style.removeProperty("--pipeline-card-h");
+      root.style.removeProperty("--pipeline-card-w");
+    }
+  }, [activeRect]);
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -83,6 +111,16 @@ function PipelineDndBoardContent({
       dragOriginStage.current = stage;
       dragOverRef.current = null;
       const lead = board[stage].find((l) => l.id === leadId) ?? null;
+
+      // Capture the source's exact pixel dimensions BEFORE the overlay paints —
+      // this is what eliminates the "teleport from center" lift bug. The overlay
+      // is now sized to match the source rect 1:1 so dnd-kit can place it directly
+      // over the source on the first frame.
+      const initial = event.active.rect.current.initial;
+      if (initial) {
+        setActiveRect({ width: initial.width, height: initial.height });
+      }
+
       setActiveLead(lead);
     },
     [board],
@@ -160,6 +198,7 @@ function PipelineDndBoardContent({
       }
 
       setActiveLead(null);
+      setActiveRect(null);
       dragOverRef.current = null;
       boardSnapshot.current = null;
       dragOriginStage.current = null;
@@ -172,6 +211,7 @@ function PipelineDndBoardContent({
       setBoard(boardSnapshot.current);
     }
     setActiveLead(null);
+    setActiveRect(null);
     dragOverRef.current = null;
     boardSnapshot.current = null;
     dragOriginStage.current = null;
@@ -182,6 +222,7 @@ function PipelineDndBoardContent({
       sensors={sensors}
       collisionDetection={closestCorners}
       modifiers={[restrictToWindowEdges]}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -228,14 +269,19 @@ function PipelineDndBoardContent({
           reducedMotion
             ? null
             : {
-                duration: 220,
-                easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+                duration: 200,
+                easing: "cubic-bezier(0.22, 1, 0.36, 1)",
               }
         }
         modifiers={[restrictToWindowEdges]}
+        zIndex={60}
       >
         {activeLead && activeStage ? (
-          <PipelineDragOverlay lead={activeLead} stageId={activeStage} />
+          <PipelineDragOverlay
+            lead={activeLead}
+            stageId={activeStage}
+            width={activeRect?.width}
+          />
         ) : null}
       </DragOverlay>
 

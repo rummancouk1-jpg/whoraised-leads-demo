@@ -28,6 +28,7 @@ export function SortablePipelineCard({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -45,21 +46,26 @@ export function SortablePipelineCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-[10px] outline-none focus-within:ring-2 focus-within:ring-indigo-400/50 focus-within:ring-offset-1 focus-within:ring-offset-[#0c1018] ${
-        isDragging ? "z-0 opacity-[0.38]" : "z-auto opacity-100"
+      className={`rounded-[10px] outline-none focus-within:ring-2 focus-within:ring-indigo-400/40 focus-within:ring-offset-1 focus-within:ring-offset-[#0c1018] ${
+        isDragging ? "pipeline-card-slot--active" : ""
       }`}
     >
       {isDragging ? (
-        <PipelineCard lead={lead} stageId={stageId} variant="ghost" aria-hidden />
+        <div
+          className="pipeline-card-slot rounded-[10px] border border-dashed border-white/[0.09] bg-white/[0.015]"
+          style={{ height: "var(--pipeline-card-h, 132px)" }}
+          aria-hidden
+        />
       ) : (
         <PipelineCard
           lead={lead}
           stageId={stageId}
           crmContext={crmContext}
           workspaceMeta={workspaceMeta}
-          dragHandleProps={{
-            ...attributes,
-            ...listeners,
+          bodyDragProps={{ listeners }}
+          handleProps={{
+            attributes,
+            setActivatorNode: setActivatorNodeRef,
           }}
           onOpen={() => openLeadDrawer(lead, stageId)}
         />
