@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useRef } from "react";
 import type { Lead } from "@/types/lead";
 import { formatCurrency, formatDate } from "@/lib/lead-utils";
 import {
@@ -14,6 +15,9 @@ interface LeadTableProps {
   copiedId: string | null;
   activeLeadId?: string | null;
   savedOnlyActive?: boolean;
+  selectedIds: ReadonlySet<string>;
+  onToggleSelected: (id: string) => void;
+  onToggleSelectAllVisible: (visibleIds: string[], nextSelected: boolean) => void;
   onCopy: (text: string, id: string) => void;
   onToggleSaved: (id: string) => void;
   onViewDetails: (lead: Lead) => void;
@@ -32,11 +36,20 @@ const rowBase =
 const rowActive =
   "z-[1] bg-indigo-50 shadow-[inset_3px_0_0_0_rgb(79,70,229),0_1px_4px_0_rgb(99,102,241,0.08)]";
 
+const rowSelected =
+  "bg-indigo-50/70 shadow-[inset_3px_0_0_0_rgb(129,140,248)]";
+
 const stickyActionsTdBase =
   "sticky right-0 z-40 isolate border-l border-slate-200 bg-white px-3 py-3.5 shadow-[-16px_0_24px_-12px_rgba(15,23,42,0.1)] transition-colors duration-200 ease-out group-hover:border-indigo-100 group-hover:bg-indigo-50";
 
 const stickyActionsTdActive =
   "border-indigo-100 bg-indigo-50";
+
+const stickyActionsTdSelected =
+  "border-indigo-100 bg-indigo-50/70";
+
+const checkboxClass =
+  "h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-indigo-600 transition-colors focus:ring-2 focus:ring-indigo-500/30 focus:ring-offset-0";
 
 const stickyActionsTh =
   "sticky right-0 z-40 isolate min-w-[228px] border-l border-slate-200 bg-slate-50 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 shadow-[-16px_0_24px_-12px_rgba(15,23,42,0.08)]";
@@ -145,15 +158,60 @@ function SaveIconAction({
   );
 }
 
+function HeaderSelectCheckbox({
+  visibleCount,
+  visibleSelectedCount,
+  onToggle,
+}: {
+  visibleCount: number;
+  visibleSelectedCount: number;
+  onToggle: (nextSelected: boolean) => void;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+  const allSelected = visibleCount > 0 && visibleSelectedCount === visibleCount;
+  const someSelected =
+    visibleSelectedCount > 0 && visibleSelectedCount < visibleCount;
+
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = someSelected;
+  }, [someSelected]);
+
+  const label = allSelected
+    ? "Deselect all visible leads"
+    : "Select all visible leads";
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className={checkboxClass}
+      checked={allSelected}
+      onChange={(e) => onToggle(e.target.checked)}
+      aria-label={label}
+      title={label}
+      disabled={visibleCount === 0}
+    />
+  );
+}
+
 export function LeadTable({
   leads,
   copiedId,
   activeLeadId,
   savedOnlyActive = false,
+  selectedIds,
+  onToggleSelected,
+  onToggleSelectAllVisible,
   onCopy,
   onToggleSaved,
   onViewDetails,
 }: LeadTableProps) {
+  const visibleIds = useMemo(() => leads.map((l) => l.id), [leads]);
+  const visibleSelectedCount = useMemo(
+    () => visibleIds.reduce((acc, id) => (selectedIds.has(id) ? acc + 1 : acc), 0),
+    [visibleIds, selectedIds],
+  );
+
   if (leads.length === 0) {
     if (savedOnlyActive) {
       return (
@@ -217,6 +275,17 @@ export function LeadTable({
         <table className="w-max border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/90">
+              <th
+                className={`${thClass} w-[40px] min-w-[40px] px-3`}
+                scope="col"
+              >
+                <span className="sr-only">Select</span>
+                <HeaderSelectCheckbox
+                  visibleCount={visibleIds.length}
+                  visibleSelectedCount={visibleSelectedCount}
+                  onToggle={(next) => onToggleSelectAllVisible(visibleIds, next)}
+                />
+              </th>
               <th className={`${thClass} min-w-[152px]`}>Company</th>
               <th className={`${thClass} min-w-[132px]`}>Founder</th>
               <th className={`${thClass} min-w-[68px]`}>Score</th>
@@ -236,12 +305,24 @@ export function LeadTable({
               const emailCopyId = `${lead.id}-email`;
               const phoneCopyId = `${lead.id}-phone`;
               const isActive = activeLeadId === lead.id;
+              const isSelected = selectedIds.has(lead.id);
 
               return (
                 <tr
                   key={lead.id}
-                  className={`${rowBase} ${isActive ? rowActive : ""}`}
+                  data-selected={isSelected || undefined}
+                  className={`${rowBase} ${isActive ? rowActive : isSelected ? rowSelected : ""}`}
                 >
+                  <td className={`${tdClass} w-[40px] min-w-[40px] px-3`}>
+                    <input
+                      type="checkbox"
+                      className={checkboxClass}
+                      checked={isSelected}
+                      onChange={() => onToggleSelected(lead.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`${isSelected ? "Deselect" : "Select"} ${lead.companyName}`}
+                    />
+                  </td>
                   <td className={`${tdClass} min-w-[152px] group-hover:text-slate-900`}>
                     <div className={`font-semibold transition-colors duration-200 ${isActive ? "text-indigo-900" : "text-slate-900 group-hover:text-indigo-900"}`}>
                       {lead.companyName}
@@ -286,7 +367,7 @@ export function LeadTable({
                     <StatusBadge status={lead.status} />
                   </td>
                   <td
-                    className={`${stickyActionsTdBase} min-w-[228px] ${isActive ? stickyActionsTdActive : ""}`}
+                    className={`${stickyActionsTdBase} min-w-[228px] ${isActive ? stickyActionsTdActive : isSelected ? stickyActionsTdSelected : ""}`}
                   >
                     <div className="flex items-center justify-end gap-0.5">
                       <CopyIconAction

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { INITIAL_LEADS } from "@/data/leads";
-import type { Lead, SortOption } from "@/types/lead";
+import type { Lead, LeadStatus, SortOption } from "@/types/lead";
 import { DEFAULT_FILTERS } from "@/types/lead";
 import {
   computeSummary,
@@ -15,6 +15,7 @@ import { LeadFilters } from "@/components/LeadFilters";
 import { LeadTable } from "@/components/LeadTable";
 import { LeadDetailDrawer } from "@/components/LeadDetailDrawer";
 import { LiveProductMeta } from "@/components/LiveProductMeta";
+import { BulkActionsToolbar } from "@/components/BulkActionsToolbar";
 
 const DASHBOARD_MAX_W = "mx-auto w-full max-w-[1320px]";
 
@@ -51,6 +52,7 @@ export function LeadDashboard() {
   const [sort, setSort] = useState<SortOption>("newest-funded");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const industries = useMemo(() => getUniqueValues(leads, "industry"), [leads]);
   const fundingRounds = useMemo(
@@ -94,6 +96,61 @@ export function LeadDashboard() {
   const handleViewDetails = useCallback((lead: Lead) => {
     setSelectedLead(lead);
   }, []);
+
+  const handleToggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAllVisible = useCallback(
+    (visibleIds: string[], nextSelected: boolean) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (nextSelected) {
+          for (const id of visibleIds) next.add(id);
+        } else {
+          for (const id of visibleIds) next.delete(id);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+  }, []);
+
+  const handleBulkChangeStatus = useCallback(
+    (status: LeadStatus) => {
+      if (selectedIds.size === 0) return;
+      setLeads((prev) =>
+        prev.map((l) => (selectedIds.has(l.id) ? { ...l, status } : l)),
+      );
+      setSelectedLead((prev) =>
+        prev && selectedIds.has(prev.id) ? { ...prev, status } : prev,
+      );
+    },
+    [selectedIds],
+  );
+
+  const selectedLeads = useMemo(
+    () => leads.filter((l) => selectedIds.has(l.id)),
+    [leads, selectedIds],
+  );
+
+  const hiddenSelectedCount = useMemo(() => {
+    if (selectedIds.size === 0) return 0;
+    const visibleSelected = filteredLeads.reduce(
+      (acc, l) => (selectedIds.has(l.id) ? acc + 1 : acc),
+      0,
+    );
+    return selectedIds.size - visibleSelected;
+  }, [filteredLeads, selectedIds]);
 
   const drawerLead = selectedLead
     ? leads.find((l) => l.id === selectedLead.id) ?? selectedLead
@@ -175,6 +232,9 @@ export function LeadDashboard() {
               copiedId={copiedId}
               activeLeadId={selectedLead?.id ?? null}
               savedOnlyActive={filters.savedOnly}
+              selectedIds={selectedIds}
+              onToggleSelected={handleToggleSelected}
+              onToggleSelectAllVisible={handleToggleSelectAllVisible}
               onCopy={handleCopy}
               onToggleSaved={handleToggleSaved}
               onViewDetails={handleViewDetails}
@@ -190,6 +250,15 @@ export function LeadDashboard() {
         onCopy={handleCopy}
         copiedId={copiedId}
       />
+
+      {selectedLeads.length > 0 && (
+        <BulkActionsToolbar
+          selectedLeads={selectedLeads}
+          hiddenCount={hiddenSelectedCount}
+          onChangeStatus={handleBulkChangeStatus}
+          onClear={handleClearSelection}
+        />
+      )}
     </div>
   );
 }
