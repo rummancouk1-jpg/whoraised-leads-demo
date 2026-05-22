@@ -301,3 +301,41 @@ input[type="search"]::-webkit-search-cancel-button {
 .pipeline-activity-details[open] summary {
   color: rgb(71 85 105);
 }
+
+@keyframes bulk-toolbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bulk-toolbar-feedback-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bulk-toolbar-mount {
+  animation: bulk-toolbar-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bulk-toolbar-feedback {
+  animation: bulk-toolbar-feedback-in 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulk-toolbar-mount,
+  .bulk-toolbar-feedback {
+    animation: none;
+  }
+}
+
