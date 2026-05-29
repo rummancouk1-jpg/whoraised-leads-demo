@@ -339,3 +339,45 @@ input[type="search"]::-webkit-search-cancel-button {
   }
 }
 
+@keyframes draft-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.draft-dialog-enter {
+  animation: draft-dialog-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draft-dialog-enter {
+    animation: none;
+  }
+}
+
+@keyframes saved-draft-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.saved-draft-toast-enter {
+  animation: saved-draft-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saved-draft-toast-enter {
+    animation: none;
+  }
+}
+

@@ -10,6 +10,7 @@ import {
   StatusBadge,
 } from "@/components/LeadBadges";
 import { LeadIntelligencePanel } from "@/components/LeadIntelligencePanel";
+import { LeadEmailDraftSummaryCard } from "@/components/outreach/LeadEmailDraftSummaryCard";
 
 interface LeadDetailDrawerProps {
   lead: Lead | null;
@@ -17,6 +18,10 @@ interface LeadDetailDrawerProps {
   onToggleSaved: (id: string) => void;
   onCopy: (text: string, id: string) => void;
   copiedId: string | null;
+  /** When set, the draft section auto-scrolls into view on open. */
+  scrollToDraftForId?: string | null;
+  /** Open the dedicated outreach draft dialog for the given lead. */
+  onOpenDraftDialog?: (leadId: string) => void;
 }
 
 export function LeadDetailDrawer({
@@ -25,6 +30,8 @@ export function LeadDetailDrawer({
   onToggleSaved,
   onCopy,
   copiedId,
+  scrollToDraftForId,
+  onOpenDraftDialog,
 }: LeadDetailDrawerProps) {
   useEffect(() => {
     if (!lead) return;
@@ -39,6 +46,17 @@ export function LeadDetailDrawer({
       document.body.style.overflow = "";
     };
   }, [lead, onClose]);
+
+  useEffect(() => {
+    if (!lead) return;
+    if (scrollToDraftForId !== lead.id) return;
+    const id = window.setTimeout(() => {
+      document
+        .getElementById("lead-drawer-draft")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [lead, scrollToDraftForId]);
 
   if (!lead) return null;
 
@@ -98,6 +116,14 @@ export function LeadDetailDrawer({
           </div>
 
           <LeadIntelligencePanel lead={lead} />
+
+          <DraftDrawerSection
+            lead={lead}
+            onSave={() => onToggleSaved(lead.id)}
+            onOpenDialog={
+              onOpenDraftDialog ? () => onOpenDraftDialog(lead.id) : undefined
+            }
+          />
 
           <DrawerSection title="Overview">
             <p className="text-sm leading-relaxed text-slate-600">
@@ -211,6 +237,42 @@ function DetailItem({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-1 text-sm font-medium text-slate-800">{value}</p>
     </div>
+  );
+}
+
+function DraftDrawerSection({
+  lead,
+  onSave,
+  onOpenDialog,
+}: {
+  lead: Lead;
+  onSave: () => void;
+  onOpenDialog?: () => void;
+}) {
+  return (
+    <section
+      id="lead-drawer-draft"
+      className="mb-5 scroll-mt-24 rounded-xl border border-indigo-200/70 bg-gradient-to-b from-indigo-50/60 to-white p-4 shadow-sm ring-1 ring-indigo-200/40"
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-700">
+          AI outreach draft
+        </h3>
+        {lead.saved ? (
+          <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+            Draft ready
+          </span>
+        ) : null}
+      </div>
+
+      {onOpenDialog ? (
+        <LeadEmailDraftSummaryCard
+          lead={lead}
+          onSave={onSave}
+          onOpenDialog={onOpenDialog}
+        />
+      ) : null}
+    </section>
   );
 }
 

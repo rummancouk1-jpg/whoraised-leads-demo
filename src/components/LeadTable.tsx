@@ -21,9 +21,11 @@ interface LeadTableProps {
   onCopy: (text: string, id: string) => void;
   onToggleSaved: (id: string) => void;
   onViewDetails: (lead: Lead) => void;
+  onOpenDraftDialog: (leadId: string) => void;
+  onSaveAndOpenDraft: (leadId: string) => void;
 }
 
-const ACTIONS_WIDTH = 228;
+const ACTIONS_WIDTH = 312;
 
 const thClass =
   "whitespace-nowrap px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500";
@@ -52,7 +54,7 @@ const checkboxClass =
   "h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-indigo-600 transition-colors focus:ring-2 focus:ring-indigo-500/30 focus:ring-offset-0";
 
 const stickyActionsTh =
-  "sticky right-0 z-40 isolate min-w-[228px] border-l border-slate-200 bg-slate-50 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 shadow-[-16px_0_24px_-12px_rgba(15,23,42,0.08)]";
+  "sticky right-0 z-40 isolate min-w-[312px] border-l border-slate-200 bg-slate-50 px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 shadow-[-16px_0_24px_-12px_rgba(15,23,42,0.08)]";
 
 const iconBtnBase =
   "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors duration-200 ease-out active:scale-[0.98]";
@@ -88,6 +90,103 @@ const ArrowRightIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
   </svg>
 );
+
+const SparkIcon = ({ className = "" }: { className?: string }) => (
+  <svg
+    className={`h-3 w-3 ${className}`}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden
+  >
+    <path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.6L12 2z" />
+  </svg>
+);
+
+/**
+ * Inline icon-to-pill Draft action.
+ *
+ * At rest the chip is a 28px-square icon button so it never overlaps
+ * Mail / Phone / Save / View details. On row hover or keyboard
+ * `focus-within`, the button's width grows and the label slides in
+ * (margin + max-width transition), turning the icon into a labeled
+ * pill. The chip sits as the middle item in a 3-way
+ * `justify-between` actions row, so its growth absorbs the breathing
+ * room around it without shifting the surrounding clusters.
+ *
+ * Touch devices (`@media (hover: none)`) keep the icon-only state and
+ * stay tappable — tapping triggers the same Save+open or Open-only
+ * behavior as a click.
+ */
+function DraftRowAction({
+  saved,
+  onClick,
+  companyLabel,
+}: {
+  saved: boolean;
+  onClick: () => void;
+  companyLabel: string;
+}) {
+  // Pre-computed widths for the saved ("Draft") and unsaved
+  // ("Save & draft") expanded labels. Listed as full class strings so
+  // Tailwind's content scanner keeps them in the build.
+  const expandedWidth = saved
+    ? "w-7 group-hover:w-[64px] group-focus-within:w-[64px] focus-visible:w-[64px]"
+    : "w-7 group-hover:w-[100px] group-focus-within:w-[100px] focus-visible:w-[100px]";
+
+  const expandedLabelMax = saved
+    ? "max-w-0 group-hover:max-w-[36px] group-focus-within:max-w-[36px] focus-visible:max-w-[36px]"
+    : "max-w-0 group-hover:max-w-[72px] group-focus-within:max-w-[72px] focus-visible:max-w-[72px]";
+
+  const expandedLabelMargin =
+    "ml-0 group-hover:ml-1 group-focus-within:ml-1 focus-visible:ml-1";
+
+  const savedStyle =
+    "border border-indigo-300/70 bg-gradient-to-b from-white via-indigo-50 to-white text-indigo-700 " +
+    "hover:border-indigo-400 hover:from-indigo-50 hover:to-white";
+
+  const unsavedStyle =
+    "border border-slate-200/80 bg-white text-slate-500 " +
+    "hover:border-indigo-300 hover:bg-indigo-50/70 hover:text-indigo-700";
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label={
+        saved
+          ? `Open outreach draft for ${companyLabel}`
+          : `Save ${companyLabel} and open outreach draft`
+      }
+      title={saved ? "Open outreach draft" : "Save and open outreach draft"}
+      className={
+        "inline-flex h-7 shrink-0 items-center justify-start overflow-hidden rounded-md px-2 text-[11px] font-semibold whitespace-nowrap shadow-sm " +
+        "transition-[width,background-color,border-color,box-shadow] duration-200 ease-out " +
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50 " +
+        "motion-reduce:transition-none " +
+        expandedWidth +
+        " " +
+        (saved ? savedStyle : unsavedStyle)
+      }
+    >
+      <SparkIcon className="shrink-0" />
+      <span
+        className={
+          "inline-block overflow-hidden whitespace-nowrap " +
+          "transition-[max-width,margin-left] duration-200 ease-out " +
+          "motion-reduce:transition-none " +
+          expandedLabelMax +
+          " " +
+          expandedLabelMargin
+        }
+      >
+        {saved ? "Draft" : "Save & draft"}
+      </span>
+    </button>
+  );
+}
 
 function CopyIconAction({
   label,
@@ -205,6 +304,8 @@ export function LeadTable({
   onCopy,
   onToggleSaved,
   onViewDetails,
+  onOpenDraftDialog,
+  onSaveAndOpenDraft,
 }: LeadTableProps) {
   const visibleIds = useMemo(() => leads.map((l) => l.id), [leads]);
   const visibleSelectedCount = useMemo(
@@ -367,35 +468,51 @@ export function LeadTable({
                     <StatusBadge status={lead.status} />
                   </td>
                   <td
-                    className={`${stickyActionsTdBase} min-w-[228px] ${isActive ? stickyActionsTdActive : isSelected ? stickyActionsTdSelected : ""}`}
+                    className={`${stickyActionsTdBase} min-w-[312px] ${isActive ? stickyActionsTdActive : isSelected ? stickyActionsTdSelected : ""}`}
                   >
-                    <div className="flex items-center justify-end gap-0.5">
-                      <CopyIconAction
-                        label="Copy email"
-                        kind="email"
-                        copied={copiedId === emailCopyId}
-                        onClick={() => onCopy(lead.email, emailCopyId)}
-                      />
-                      <CopyIconAction
-                        label="Copy phone"
-                        kind="phone"
-                        copied={copiedId === phoneCopyId}
-                        onClick={() => onCopy(lead.phone, phoneCopyId)}
-                      />
-                      <SaveIconAction
-                        label={lead.saved ? "Saved" : "Save lead"}
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-0.5">
+                        <CopyIconAction
+                          label="Copy email"
+                          kind="email"
+                          copied={copiedId === emailCopyId}
+                          onClick={() => onCopy(lead.email, emailCopyId)}
+                        />
+                        <CopyIconAction
+                          label="Copy phone"
+                          kind="phone"
+                          copied={copiedId === phoneCopyId}
+                          onClick={() => onCopy(lead.phone, phoneCopyId)}
+                        />
+                        <SaveIconAction
+                          label={lead.saved ? "Saved" : "Save lead"}
+                          saved={lead.saved}
+                          onClick={() => onToggleSaved(lead.id)}
+                        />
+                      </div>
+                      <DraftRowAction
                         saved={lead.saved}
-                        onClick={() => onToggleSaved(lead.id)}
+                        companyLabel={lead.companyName}
+                        onClick={() =>
+                          lead.saved
+                            ? onOpenDraftDialog(lead.id)
+                            : onSaveAndOpenDraft(lead.id)
+                        }
                       />
-                      <span aria-hidden className="mx-1.5 h-5 w-px bg-slate-200" />
-                      <button
-                        type="button"
-                        onClick={() => onViewDetails(lead)}
-                        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-indigo-200/90 bg-white px-2.5 text-[11px] font-medium text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/80"
-                      >
-                        View details
-                        <ArrowRightIcon />
-                      </button>
+                      <div className="flex items-center gap-0.5">
+                        <span
+                          aria-hidden
+                          className="mx-1 h-5 w-px bg-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => onViewDetails(lead)}
+                          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-indigo-200/90 bg-white px-2.5 text-[11px] font-medium text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/80"
+                        >
+                          View details
+                          <ArrowRightIcon />
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>

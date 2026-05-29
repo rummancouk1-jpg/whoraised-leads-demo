@@ -29,6 +29,7 @@ export interface LeadDrawerProfile {
 export type LeadDrawerSectionId =
   | "overview"
   | "ai"
+  | "email-draft"
   | "activity"
   | "actions"
   | "contact";
@@ -39,6 +40,7 @@ export const LEAD_DRAWER_SECTIONS: readonly {
 }[] = [
   { id: "overview", label: "Overview" },
   { id: "ai", label: "AI" },
+  { id: "email-draft", label: "Draft" },
   { id: "activity", label: "Activity" },
   { id: "actions", label: "Actions" },
   { id: "contact", label: "Contact" },
