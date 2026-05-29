@@ -19,7 +19,7 @@ export function SortablePipelineCard({
   stageId,
   reducedMotion,
 }: SortablePipelineCardProps) {
-  const { getLeadContext, openLeadDrawer } = usePipelineCrm();
+  const { getLeadContext, openLeadDrawer, openDraftDialog } = usePipelineCrm();
   const { getWorkspaceMeta } = usePipelineWorkspace();
   const crmContext = getLeadContext(lead.id);
   const workspaceMeta = getWorkspaceMeta(lead.id);
@@ -68,6 +68,9 @@ export function SortablePipelineCard({
             setActivatorNode: setActivatorNodeRef,
           }}
           onOpen={() => openLeadDrawer(lead, stageId)}
+          onOpenDraft={
+            lead.saved ? () => openDraftDialog(lead.id) : undefined
+          }
         />
       )}
     </div>

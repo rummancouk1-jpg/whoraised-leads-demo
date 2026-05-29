@@ -16,6 +16,8 @@ import { LeadTable } from "@/components/LeadTable";
 import { LeadDetailDrawer } from "@/components/LeadDetailDrawer";
 import { LiveProductMeta } from "@/components/LiveProductMeta";
 import { BulkActionsToolbar } from "@/components/BulkActionsToolbar";
+import { SavedDraftToast } from "@/components/outreach/SavedDraftToast";
+import { LeadEmailDraftDialog } from "@/components/outreach/LeadEmailDraftDialog";
 
 const DASHBOARD_MAX_W = "mx-auto w-full max-w-[1320px]";
 
@@ -53,6 +55,13 @@ export function LeadDashboard() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [savedDraftLead, setSavedDraftLead] = useState<Lead | null>(null);
+  const [scrollToDraftForId, setScrollToDraftForId] = useState<string | null>(
+    null,
+  );
+  const [draftDialogLeadId, setDraftDialogLeadId] = useState<string | null>(
+    null,
+  );
 
   const industries = useMemo(() => getUniqueValues(leads, "industry"), [leads]);
   const fundingRounds = useMemo(
@@ -85,16 +94,60 @@ export function LeadDashboard() {
   }, []);
 
   const handleToggleSaved = useCallback((id: string) => {
+    let becameSaved: Lead | null = null;
     setLeads((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, saved: !l.saved } : l)),
+      prev.map((l) => {
+        if (l.id !== id) return l;
+        const next = { ...l, saved: !l.saved };
+        if (next.saved) becameSaved = next;
+        return next;
+      }),
     );
     setSelectedLead((prev) =>
       prev?.id === id ? { ...prev, saved: !prev.saved } : prev,
     );
+    if (becameSaved) {
+      setSavedDraftLead(becameSaved);
+    }
   }, []);
+
+  const handleDismissDraftToast = useCallback(() => {
+    setSavedDraftLead(null);
+  }, []);
+
+  const handleViewDraftFromToast = useCallback(() => {
+    if (!savedDraftLead) return;
+    setDraftDialogLeadId(savedDraftLead.id);
+    setSavedDraftLead(null);
+  }, [savedDraftLead]);
 
   const handleViewDetails = useCallback((lead: Lead) => {
     setSelectedLead(lead);
+    setScrollToDraftForId(null);
+  }, []);
+
+  const handleOpenDraftDialog = useCallback((leadId: string) => {
+    setDraftDialogLeadId(leadId);
+  }, []);
+
+  const handleCloseDraftDialog = useCallback(() => {
+    setDraftDialogLeadId(null);
+  }, []);
+
+  /**
+   * Save the lead (if not already saved) and open the Outreach Draft
+   * Studio in one click. Used by the dashboard's hover-reveal "Save &
+   * draft" action so the user doesn't have to save → wait for toast →
+   * click view. Suppresses the toast because the studio is already open.
+   */
+  const handleSaveAndOpenDraft = useCallback((leadId: string) => {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId && !l.saved ? { ...l, saved: true } : l)),
+    );
+    setSelectedLead((prev) =>
+      prev?.id === leadId && !prev.saved ? { ...prev, saved: true } : prev,
+    );
+    setDraftDialogLeadId(leadId);
   }, []);
 
   const handleToggleSelected = useCallback((id: string) => {
@@ -154,6 +207,10 @@ export function LeadDashboard() {
 
   const drawerLead = selectedLead
     ? leads.find((l) => l.id === selectedLead.id) ?? selectedLead
+    : null;
+
+  const draftDialogLead = draftDialogLeadId
+    ? leads.find((l) => l.id === draftDialogLeadId) ?? null
     : null;
 
   return (
@@ -238,6 +295,8 @@ export function LeadDashboard() {
               onCopy={handleCopy}
               onToggleSaved={handleToggleSaved}
               onViewDetails={handleViewDetails}
+              onOpenDraftDialog={handleOpenDraftDialog}
+              onSaveAndOpenDraft={handleSaveAndOpenDraft}
             />
           </div>
         </section>
@@ -245,10 +304,21 @@ export function LeadDashboard() {
 
       <LeadDetailDrawer
         lead={drawerLead}
-        onClose={() => setSelectedLead(null)}
+        onClose={() => {
+          setSelectedLead(null);
+          setScrollToDraftForId(null);
+        }}
         onToggleSaved={handleToggleSaved}
         onCopy={handleCopy}
         copiedId={copiedId}
+        scrollToDraftForId={scrollToDraftForId}
+        onOpenDraftDialog={handleOpenDraftDialog}
+      />
+
+      <LeadEmailDraftDialog
+        lead={draftDialogLead}
+        open={Boolean(draftDialogLead)}
+        onClose={handleCloseDraftDialog}
       />
 
       {selectedLeads.length > 0 && (
@@ -259,6 +329,12 @@ export function LeadDashboard() {
           onClear={handleClearSelection}
         />
       )}
+
+      <SavedDraftToast
+        lead={savedDraftLead}
+        onView={handleViewDraftFromToast}
+        onDismiss={handleDismissDraftToast}
+      />
     </div>
   );
 }

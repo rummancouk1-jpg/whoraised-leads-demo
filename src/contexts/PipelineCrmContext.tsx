@@ -40,6 +40,10 @@ interface PipelineCrmContextValue {
   openLeadDrawer: (lead: Lead, stageId: PipelineStage) => void;
   closeLeadDrawer: () => void;
   resolveDrawerLead: () => Lead | null;
+  draftDialogLeadId: string | null;
+  openDraftDialog: (leadId: string) => void;
+  closeDraftDialog: () => void;
+  resolveDraftDialogLead: () => Lead | null;
   onToggleSaved?: (leadId: string) => void;
 }
 
@@ -59,6 +63,9 @@ export function PipelineCrmProvider({
   >({});
   const [pulseStage, setPulseStage] = useState<PipelineStage | null>(null);
   const [drawerSelection, setDrawerSelection] = useState<DrawerSelection | null>(
+    null,
+  );
+  const [draftDialogLeadId, setDraftDialogLeadId] = useState<string | null>(
     null,
   );
 
@@ -88,6 +95,21 @@ export function PipelineCrmProvider({
   const closeLeadDrawer = useCallback(() => {
     setDrawerSelection(null);
   }, []);
+
+  const openDraftDialog = useCallback((leadId: string) => {
+    setDraftDialogLeadId(leadId);
+  }, []);
+
+  const closeDraftDialog = useCallback(() => {
+    setDraftDialogLeadId(null);
+  }, []);
+
+  const resolveDraftDialogLead = useCallback((): Lead | null => {
+    if (!draftDialogLeadId) return null;
+    const stage = findLeadStage(board, draftDialogLeadId);
+    if (!stage) return null;
+    return board[stage].find((l) => l.id === draftDialogLeadId) ?? null;
+  }, [board, draftDialogLeadId]);
 
   const onToggleSaved = useCallback(
     (leadId: string) => {
@@ -142,6 +164,10 @@ export function PipelineCrmProvider({
       openLeadDrawer,
       closeLeadDrawer,
       resolveDrawerLead,
+      draftDialogLeadId,
+      openDraftDialog,
+      closeDraftDialog,
+      resolveDraftDialogLead,
       onToggleSaved: setBoard ? onToggleSaved : undefined,
     }),
     [
@@ -153,6 +179,10 @@ export function PipelineCrmProvider({
       openLeadDrawer,
       closeLeadDrawer,
       resolveDrawerLead,
+      draftDialogLeadId,
+      openDraftDialog,
+      closeDraftDialog,
+      resolveDraftDialogLead,
       setBoard,
       onToggleSaved,
     ],

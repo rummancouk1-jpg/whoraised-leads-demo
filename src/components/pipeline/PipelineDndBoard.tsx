@@ -45,6 +45,7 @@ import { PipelineHealthStrip } from "@/components/pipeline/intelligence/Pipeline
 import { PipelineWorkspaceHeader } from "@/components/pipeline/workspace/PipelineWorkspaceHeader";
 import { PipelineBoardEmpty } from "@/components/pipeline/workspace/PipelineBoardEmpty";
 import { LeadWorkspaceDrawer } from "@/components/lead-workspace/LeadWorkspaceDrawer";
+import { PipelineDraftDialogMount } from "@/components/pipeline/PipelineDraftDialogMount";
 
 interface PipelineDndBoardProps {
   initialBoard: PipelineBoardState;
@@ -286,6 +287,7 @@ function PipelineDndBoardContent({
       </DragOverlay>
 
       <LeadWorkspaceDrawer />
+      <PipelineDraftDialogMount />
     </DndContext>
   );
 }

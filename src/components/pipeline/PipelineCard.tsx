@@ -35,6 +35,7 @@ interface PipelineCardProps {
   bodyDragProps?: BodyDragProps;
   handleProps?: HandleProps;
   onOpen?: () => void;
+  onOpenDraft?: () => void;
 }
 
 const VARIANT_CLASS: Record<PipelineCardVariant, string> = {
@@ -61,6 +62,7 @@ export function PipelineCard({
   bodyDragProps,
   handleProps,
   onOpen,
+  onOpenDraft,
 }: PipelineCardProps) {
   const mode = intelligenceMode(variant);
   const isInteractive = variant === "default" && Boolean(onOpen);
@@ -145,7 +147,7 @@ export function PipelineCard({
         />
       ) : null}
 
-      <div className="mt-1.5 flex items-center gap-1.5">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         <span className="inline-flex max-w-[calc(100%-4rem)] truncate rounded-md bg-white/[0.05] px-1.5 py-px text-[10px] font-medium text-slate-300 ring-1 ring-inset ring-white/[0.05]">
           {lead.industry}
         </span>
@@ -155,6 +157,36 @@ export function PipelineCard({
         >
           {lead.fundingRound.replace("Series ", "S")}
         </span>
+        {lead.saved ? (
+          variant === "default" && onOpenDraft ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenDraft();
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-indigo-500/15 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-indigo-300 ring-1 ring-inset ring-indigo-400/25 transition-colors hover:bg-indigo-500/25 hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+              title="Open outreach email draft"
+              aria-label={`Open ${lead.companyName} outreach draft`}
+            >
+              <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.6L12 2z" />
+              </svg>
+              Draft
+            </button>
+          ) : (
+            <span
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-indigo-500/15 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-indigo-300 ring-1 ring-inset ring-indigo-400/25"
+              title="Outreach email draft is ready"
+            >
+              <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.6L12 2z" />
+              </svg>
+              Draft
+            </span>
+          )
+        ) : null}
       </div>
 
       <div className="mt-2 flex items-end justify-between gap-2 border-t border-white/[0.05] pt-2">

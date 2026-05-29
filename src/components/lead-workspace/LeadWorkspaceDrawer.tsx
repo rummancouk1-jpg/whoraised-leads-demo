@@ -12,6 +12,7 @@ import { usePipelineCrm } from "@/contexts/PipelineCrmContext";
 import { usePipelineWorkspaceOptional } from "@/contexts/PipelineWorkspaceContext";
 import { LeadOverviewSection } from "@/components/lead-workspace/LeadOverviewSection";
 import { LeadAiIntelligenceSection } from "@/components/lead-workspace/LeadAiIntelligenceSection";
+import { LeadEmailDraftSection } from "@/components/lead-workspace/LeadEmailDraftSection";
 import { LeadActivitySection } from "@/components/lead-workspace/LeadActivitySection";
 import { LeadActionsSection } from "@/components/lead-workspace/LeadActionsSection";
 import { LeadContactIntelSection } from "@/components/lead-workspace/LeadContactIntelSection";
@@ -116,6 +117,7 @@ function LeadWorkspaceDrawerPanel({
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50/30 to-white px-4 py-4 sm:px-5">
         <LeadOverviewSection profile={profile} workspaceMeta={workspaceMeta} />
         <LeadAiIntelligenceSection profile={profile} />
+        <LeadEmailDraftSection lead={lead} onSave={onToggleSaved} />
         <LeadActivitySection profile={profile} />
         <LeadActionsSection profile={profile} />
         <LeadContactIntelSection
