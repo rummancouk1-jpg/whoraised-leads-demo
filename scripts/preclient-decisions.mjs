@@ -1,0 +1,1 @@
+import fs from 'node:fs/promises';let a=JSON.parse(await fs.readFile('data/creator-list-r2.json','utf8'));console.log(a.decisions.filter(d=>d.decision==='remove'||d.decision==='archive'));console.log(a.paid_media);

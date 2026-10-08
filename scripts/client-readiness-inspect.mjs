@@ -1,0 +1,1 @@
+import {neon} from '@neondatabase/serverless';process.loadEnvFile('.env.local');const sql=neon(process.env.DATABASE_URL);console.log(await sql`SELECT column_name,data_type FROM information_schema.columns WHERE table_name='gg_creator_audit_archive'`);console.log(await sql`SELECT * FROM gg_creator_audit_archive LIMIT 2`);

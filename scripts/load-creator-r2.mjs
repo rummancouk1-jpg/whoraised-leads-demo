@@ -1,0 +1,11 @@
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
+import { chromium } from '@playwright/test';
+const targets=JSON.parse(await fs.readFile(process.argv[2],'utf8'));
+const rendered=process.argv.includes('--render');
+const browser=rendered?await chromium.launch({channel:'chrome'}):null;
+const out=[];let index=0;
+async function worker(){const page=browser?await browser.newPage():null;while(index<targets.length){const url=targets[index++];const file=`evidence/creator-audit-r2/html/${crypto.createHash('sha256').update(url).digest('hex').slice(0,20)}${rendered?'-rendered':''}.html`;const record={url,file,rendered,checked_at:new Date().toISOString()};try{let h;if(page){const response=await page.goto(url,{timeout:30000,waitUntil:'domcontentloaded'});await page.waitForTimeout(2500);record.status=response?.status();record.final_url=page.url();h=await page.content();record.visible_text=await page.locator('body').innerText();record.visible_forms=await page.locator('form').evaluateAll(forms=>forms.map(f=>({html:f.outerHTML,visible:!!f.getClientRects().length})));}else{const r=await fetch(url,{signal:AbortSignal.timeout(20000)});record.status=r.status;record.final_url=r.url;h=await r.text();}await fs.writeFile(file,h);record.text=h.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(0,80000);record.emails=[...new Set(h.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/ig)||[])].filter(e=>!/sentry|wixpress|example|your@email|u003e|^n[a-z]+@/i.test(e));record.forms=(h.match(/<form\b[^>]*>/gi)||[]);record.links=[...new Set([...h.matchAll(/href=["']([^"']+)["']/gi)].map(m=>m[1]))].filter(l=>l.length<200&&/message|chat|contact|partner|sponsor|about|mailto/i.test(l));}catch(e){record.error=e.message;}out.push(record);console.log(JSON.stringify({url,status:record.status,emails:record.emails,forms:record.forms?.length,text:record.visible_text?.slice(0,400),error:record.error}));}await page?.close();}
+await Promise.allSettled(Array.from({length:rendered?3:8},worker));await browser?.close();
+const existing=JSON.parse(await fs.readFile('data/creator-research-r2.json','utf8'));
+await fs.writeFile('data/creator-research-r2.json',JSON.stringify([...existing,...out],null,2));

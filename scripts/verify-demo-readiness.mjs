@@ -1,0 +1,39 @@
+import fs from 'node:fs/promises';import assert from 'node:assert/strict';import {chromium,expect} from '@playwright/test';import nextEnv from '@next/env';nextEnv.loadEnvConfig(process.cwd());
+const origin='https://gg-tourney-hub.vercel.app',root='evidence/demo-readiness';await fs.mkdir(root,{recursive:true});
+const audited=JSON.parse(await fs.readFile('data/creator-demo-audit.json','utf8'));
+const prior=JSON.parse(await fs.readFile(root+'/verification.json','utf8'));
+const results={origin,checkedAt:new Date().toISOString(),checks:[],clickProof:prior.clickProof};
+for(const channel of ['chrome','msedge']){
+ const browser=await chromium.launch({channel,headless:false});
+ for(const width of [390,820,1440])for(const reducedMotion of ['no-preference','reduce']){
+  const context=await browser.newContext({viewport:{width,height:960},reducedMotion});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+  const entry={channel,version:browser.version(),width,reducedMotion,incognitoContext:true,naturalUserAgent:await page.evaluate(()=>navigator.userAgent),captures:[],gates:{},errors};
+  const prefix=`${channel}-${width}-${reducedMotion==='reduce'?'reduce':'normal'}`;
+  async function shot(view,fullPage=false){await page.evaluate(()=>document.fonts.ready);const path=`${prefix}-${view}.png`;await page.screenshot({path:root+'/'+path,fullPage,animations:'disabled'});entry.captures.push(path);entry.viewportEvidence??=[];entry.viewportEvidence.push({view,url:page.url(),viewport:page.viewportSize(),documentWidth:await page.evaluate(()=>document.documentElement.scrollWidth)});assert(!/whoraised/i.test((await page.locator('body').innerText())+' '+await page.title()+' '+page.url()));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
+  try{
+   await page.goto(origin+'/');await expect(page.getByRole('button',{name:'Log in',exact:true})).toBeVisible({timeout:45000});const loginHTML=await page.content();assert(!/r1-|audit-|example-click-proof/.test(loginHTML));for(const l of audited.accepted)assert(!loginHTML.includes(l.name),`Pre-auth creator name: ${l.name}`);await shot('login');entry.gates.preAuth=true;
+   await page.getByLabel('Workspace password').fill(process.env.GG_ACCESS_PASSWORD);await page.getByRole('button',{name:'Log in',exact:true}).click();await expect(page.getByRole('heading',{name:'Lead list',exact:true})).toBeVisible({timeout:45000});await expect(page.locator('.gg-status-strip')).not.toContainText('Loading…',{timeout:45000});
+   const data=await (await context.request.get(origin+'/api/leads')).json();assert.equal(data.leads.filter(l=>!/^EXAMPLE/.test(l.name)&&! /^(example|test)-/.test(l.tracked_slug)).length,50);for(const l of data.leads.filter(l=>!/^EXAMPLE/.test(l.name)))assert(l.source_url_live==='y'&&l.contact_source_url&&l.us_trader_fit!=='weak'&&l.verified_at);const realClicks=data.clicks.groups.reduce((n,g)=>n+g.clicks,0);entry.metrics={leadCount:data.leads.length,realClicks,testClicks:data.clicks.tests};assert(!data.clicks.leads.some(c=>/^(example|test)-/.test(c.slug)));assert.equal(data.clicks.daily.reduce((n,d)=>n+d.clicks,0),realClicks);
+   await expect(page.locator('.gg-status-strip').getByText(String(realClicks),{exact:true}).last()).toBeVisible();entry.statusStrip=await page.locator('.gg-status-strip').innerText();await shot('home');await shot('home-full',true);
+   const lead=data.leads.find(l=>!/^EXAMPLE/.test(l.name)&&! /^(example|test)-/.test(l.tracked_slug));assert(lead);
+   await page.getByLabel('Search leads',{exact:true}).fill(lead.tracked_slug);await page.getByRole('button',{name:`${lead.name} ${lead.handle}`,exact:true}).click();await page.locator('.gg-draft').scrollIntoViewIfNeeded();await expect(page.locator('.gg-draft')).toContainText(origin+'/go/'+lead.tracked_slug);await expect.poll(async()=>{const b=await page.getByRole('dialog').boundingBox();return b.x>=-1&&b.x+b.width<=width+1}).toBe(true);await shot('pitch');
+   if(!results.clickProof&&channel==='chrome'&&width===390&&reducedMotion==='no-preference'){
+    const before=data.clicks.leads.find(c=>c.slug===lead.tracked_slug)?.clicks||0;
+    const popupPromise=page.waitForEvent('popup');await page.locator('.gg-draft a').click();const popup=await popupPromise;await popup.waitForLoadState('domcontentloaded',{timeout:45000}).catch(()=>{});const landing=popup.url();const u=new URL(landing);assert.equal(u.searchParams.get('utm_content'),lead.tracked_slug);assert.equal(u.searchParams.get('utm_campaign'),'gg-q3');assert.equal(u.searchParams.get('utm_source'),'creator');await popup.screenshot({path:root+'/real-click-landing-390.png'}).catch(()=>{});await popup.close();
+    const after=(await(await context.request.get(origin+'/api/leads')).json()).clicks.leads.find(c=>c.slug===lead.tracked_slug)?.clicks||0;assert.equal(after,before+1);
+    for(const agent of ['Twitterbot/1.0','facebookexternalhit/1.1','Slackbot','Discordbot','LinkedInBot','WhatsApp','TelegramBot']){const r=await context.request.get(origin+'/go/'+lead.tracked_slug,{headers:{'user-agent':agent},maxRedirects:0});assert.equal(r.status(),302);}
+    for(const host of [origin,'https://whoraised-leads-demo.vercel.app']){const r=await context.request.head(host+'/go/'+lead.tracked_slug,{maxRedirects:0});assert.equal(r.status(),302);assert.equal(new URL(r.headers().location).searchParams.get('utm_content'),lead.tracked_slug);}
+    await context.request.get(origin+'/go/'+lead.tracked_slug,{headers:{purpose:'prefetch'},maxRedirects:0});
+    const baseline=await(await context.request.get(origin+'/api/leads')).json();assert.equal(baseline.clicks.leads.find(c=>c.slug===lead.tracked_slug).clicks,after);
+    const testBefore=baseline.clicks.tests.find(c=>c.slug===lead.tracked_slug)?.clicks||0;await context.request.get(origin+'/go/'+lead.tracked_slug+'?test=1',{maxRedirects:0});const testAfter=await(await context.request.get(origin+'/api/leads')).json();assert.deepEqual(testAfter.clicks.leads,baseline.clicks.leads);assert.deepEqual(testAfter.clicks.groups,baseline.clicks.groups);assert.deepEqual(testAfter.clicks.daily,baseline.clicks.daily);assert.equal(testAfter.clicks.tests.find(c=>c.slug===lead.tracked_slug).clicks,testBefore+1);
+    results.clickProof={slug:lead.tracked_slug,before,after,landing,once:true,previewUncounted:true,oldHostRedirect:true,testQueryExcluded:true,naturalUserAgent:entry.naturalUserAgent};
+   }
+   await page.getByRole('button',{name:'Close dialog',exact:true}).click();await page.getByLabel('Search leads',{exact:true}).fill('');await page.locator('#click-title').scrollIntoViewIfNeeded();await shot('analytics');assert.equal(await page.getByLabel('Show test clicks').isChecked(),false);
+   await page.goto(origin+'/pipeline');await expect(page.getByRole('heading',{name:'Outreach pipeline',exact:true})).toBeVisible();await expect(page.locator('.gg-pipeline-card').first()).toBeVisible({timeout:45000});await expect(page.getByText('Loading shared workspace…',{exact:true})).toHaveCount(0);await shot('pipeline');await shot('pipeline-full',true);assert.deepEqual(errors,[]);
+   if(reducedMotion==='reduce')assert.equal(await page.evaluate(()=>[...document.querySelectorAll('body *')].some(el=>{const s=getComputedStyle(el);return s.animationName!=='none'||s.transitionDuration.split(',').some(v=>parseFloat(v)>0)})),false);
+   entry.gates={...entry.gates,cleanHost:true,noPageOverflow:true,statusReadable:true,testExcluded:true,noConsoleErrors:true,motion:true};entry.status='PASS';
+  }catch(e){entry.status='FAIL';entry.failure=e.message;console.log(prefix+': FAIL '+e.message.slice(0,300));}finally{results.checks.push(entry);await fs.writeFile(root+'/verification.json',JSON.stringify(results,null,2));await context.close();}
+  console.log(prefix+': '+entry.status);
+ }
+ await browser.close();
+}

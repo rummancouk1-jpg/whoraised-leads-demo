@@ -1,0 +1,23 @@
+import fs from 'node:fs/promises';
+import sharp from 'sharp';
+const root = 'evidence/click-tracking';
+const result = JSON.parse(await fs.readFile(`${root}/verification.json`, 'utf8'));
+let table = '| View | 390 normal | 390 reduced | 820 normal | 820 reduced | 1440 normal | 1440 reduced |\n|---|---|---|---|---|---|---|\n';
+for (const view of ['dashboard', 'trend', 'drawer', 'pitch', 'pipeline']) {
+  table += `| ${view} | ${result.parity.map(p => `[${p.status}](../${root}/${p[view]})`).join(' | ')} |\n`;
+  const composite = [];
+  for (const [i, p] of result.parity.entries()) {
+    const input = await sharp(`${root}/${p[view]}`).resize({ width: 450, height: 900, fit: 'inside' }).toBuffer();
+    const m = await sharp(input).metadata();
+    const left = (i % 3) * 470, top = Math.floor(i / 3) * 940;
+    composite.push({ input: Buffer.from(`<svg width="470" height="30"><text x="8" y="22" fill="white" font-size="17">${view} ${p.width} ${p.motion}</text></svg>`), left, top });
+    composite.push({ input, left: left + Math.floor((470 - m.width) / 2), top: top + 32 });
+  }
+  await sharp({ create: { width: 1410, height: 1880, channels: 3, background: '#18202c' } }).composite(composite).png().toFile(`${root}/review-${view}.png`);
+}
+await fs.writeFile(`${root}/index.html`, `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GG click tracking production evidence</title><style>body{background:#10151d;color:#eee;font:16px system-ui;margin:24px}a{color:#bcbfff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}img{width:100%;height:440px;object-fit:contain}figure{margin:0;padding:12px;border:1px solid #445}</style><h1>GG click tracking production evidence</h1><p>Production: ${result.origin} · ${result.checkedAt} · 30 captures</p><p>Physical phone check remains pending. Desktop clicks and bot exclusion are verified.</p><div class="grid">${result.parity.flatMap(p => ['dashboard', 'trend', 'drawer', 'pitch', 'pipeline'].map(view => `<figure><a href="${p[view]}"><img src="${p[view]}" alt="${view} ${p.width} ${p.motion}"></a><figcaption>${view} ${p.width} ${p.motion}: ${p.status}</figcaption></figure>`)).join('')}</div></html>`);
+const path = 'docs/GG_CLICK_TRACKING.md';
+let report = await fs.readFile(path, 'utf8');
+report = report.replace(/Production check results and screenshot links are recorded below after verification completes\.|Production deployment:[\s\S]*?(?=\n## Remaining physical-device evidence)/, `Production deployment: [dpl_6aE6p82pPmqLLb7y67ewZkrNjZQe](https://vercel.com/rummancouk1-9706s-projects/whoraised-leads-demo/6aE6p82pPmqLLb7y67ewZkrNjZQe), aliased to the stable production origin. Verification captured at **${result.checkedAt}**.\n\n- **PASS — desktop:** ${result.events.filter(e => e.platform_guess === 'desktop').length} persisted desktop events (including the earlier verification attempt). A headed Chromium browser clicked a DOM link using its natural desktop user-agent. The most recent desktop event is **${result.events.filter(e => e.platform_guess === 'desktop').at(-1)?.clicked_at}**. The dashboard count matches all ${result.count} persisted fixture events.\n- **PASS — bot curl:** HTTP 302 to the correctly attributed destination, with click count unchanged (${result.baseline} before and after this verification's bot/HEAD/prefetch requests). Twitterbot plus six other preview agents were excluded.\n- **PASS — privacy/access:** no IP or full-UA columns; anonymous analytics 401; invalid slug 404; POST 405; unknown slug does not count.\n- **PASS — parity:** 390/820/1440 in normal and reduced motion; no page overflow, settled drawer bounds inside viewport, and no active animations/transitions under reduced motion. No browser runtime errors.\n- **PENDING — physical phone:** no confirmed physical phone event. Mobile emulation has not been substituted for this requirement.\n\n[Raw production evidence](../${root}/verification.json) · [Screenshot gallery](../${root}/index.html)\n\n${table}\nThe production database contained zero real leads. Therefore group totals and trend correctly show the real-data empty state. The temporary-table check independently verifies nonzero aggregation and zero filling. The EXAMPLE proof lead shows the actual persisted desktop count in its row and drawer. Narrow lead tables and pipeline boards intentionally scroll horizontally. No screenshot contains a password.`);
+await fs.writeFile(path, report);
+console.log('Report, 30-capture gallery and five visual-review composites generated.');

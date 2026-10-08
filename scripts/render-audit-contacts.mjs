@@ -1,0 +1,7 @@
+import fs from 'node:fs/promises';
+import { chromium } from '@playwright/test';
+const urls=JSON.parse(await fs.readFile(process.argv[2],'utf8'));
+const browser=await chromium.launch({channel:'chrome',headless:false});
+const context=await browser.newContext({viewport:{width:1440,height:1000}});const out=[];
+await fs.mkdir('evidence/creator-audit/rendered',{recursive:true});
+for(let i=0;i<urls.length;i+=3){await Promise.all(urls.slice(i,i+3).map(async url=>{const page=await context.newPage();const row={url,verified_at:new Date().toISOString()};try{const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});row.status=response?.status();await page.waitForTimeout(1500);row.final_url=page.url();row.title=await page.title();row.content=await page.locator('body').innerText();row.links=await page.locator('a').evaluateAll(a=>a.map(a=>({href:a.href,text:a.innerText})).filter(x=>/youtube|sponsor|advertis|partner|mailto|contact|form/i.test(x.href+' '+x.text)));row.formLabels=await page.locator('label,select').allTextContents();row.evidence_file='evidence/creator-audit/rendered/'+urls.indexOf(url)+'.png';await page.screenshot({path:row.evidence_file,fullPage:true});}catch(e){row.error=e.message}out.push(row);await page.close()}));await fs.writeFile('data/creator-rendered-contact-loads.json',JSON.stringify(out,null,2));console.log('Rendered '+Math.min(i+3,urls.length)+'/'+urls.length)}await browser.close();

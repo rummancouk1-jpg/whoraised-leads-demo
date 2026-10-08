@@ -1,0 +1,2 @@
+
+for(const url of process.argv.slice(2)){try{const r=await fetch(url,{signal:AbortSignal.timeout(15000)});const h=await r.text();const links=[...h.matchAll(/(?:href|url|targetUrl)[=:]\s*["']([^"']+)["']/g)].map(m=>m[1]);console.log(JSON.stringify({url,status:r.status,links:[...new Set(links.filter(x=>/youtube|mailto:|advertis|sponsor|partner|contact/i.test(x)))].slice(-30)}))}catch(e){console.log(url,e.message)}}

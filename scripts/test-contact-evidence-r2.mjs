@@ -1,0 +1,41 @@
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { checkAllContacts,checkContactEvidence } from './contact-evidence-gate.mjs';
+import { contract } from './outreach-contract.mjs';
+import { schema } from './outreach-contract.mjs';
+import { validateAuditedCsv } from './audited-csv-gate.mjs';
+import { randomUUID } from 'node:crypto';
+import os from 'node:os';
+import path from 'node:path';
+const audit=JSON.parse(await fs.readFile('data/creator-list-r2.json','utf8'));
+const checks=await checkAllContacts(audit.accepted,audit.contact_manifest);
+const email=audit.accepted.find(l=>l.contact_type==='email');
+const form=audit.accepted.find(l=>l.contact_type==='form');
+const native=audit.accepted.find(l=>l.contact_type==='substack');
+const manifestFor=(lead,url)=>audit.contact_manifest.map(r=>r.file===lead.contact_evidence_file?{...r,url}:r);
+const cases=[];
+async function reject(name,lead,manifest=audit.contact_manifest){await assert.rejects(()=>checkContactEvidence(lead,manifest));cases.push({name,status:'PASS'});}
+await reject('Unpublished/inferred email',{...email,contact:'unpublished-qa-address@example.invalid'});
+const homepage=new URL(email.contact_source_url).origin+'/';
+await reject('Homepage with an otherwise valid email',{...email,contact_source_url:homepage},manifestFor(email,homepage));
+await reject('Contact page redirects to a homepage',email,audit.contact_manifest.map(r=>r.file===email.contact_evidence_file?{...r,final_url:homepage}:r));
+const videos='https://www.youtube.com/@qa/videos';
+await reject('Video tab with an otherwise valid email',{...email,contact_source_url:videos},manifestFor(email,videos));
+await reject('Missing successful source provenance',email,[]);
+await reject('Form route does not match saved source',{...form,contact:'https://example.invalid/contact'});
+await reject('Unrelated platform spoof',{...native,contact:'https://evilsubstack.com/@qa',contact_source_url:'https://evilsubstack.com/@qa'},manifestFor(native,'https://evilsubstack.com/@qa'));
+const parsed=contract.parseLeadsCsv(contract.exportCsv(audit.accepted));
+assert.equal(parsed.length,audit.count);
+for(const l of parsed)assert.equal(l.contact_source_url,audit.accepted.find(a=>a.tracked_slug===l.tracked_slug).contact_source_url);
+await validateAuditedCsv('data/creator-list-r2.csv');
+const temp=path.join(os.tmpdir(),'creator-r2-'+randomUUID());
+const quote=v=>'"'+String(v??'').replaceAll('"','""')+'"';
+try{
+ await fs.writeFile(temp+'.csv',schema.BASE_CSV_COLUMNS.join(',')+'\n'+schema.BASE_CSV_COLUMNS.map(k=>quote(email[k])).join(','),{flag:'wx'});
+ await assert.rejects(()=>validateAuditedCsv(temp+'.csv'),/sidecar/);cases.push({name:'Stripping audit columns cannot bypass evidence',status:'PASS'});
+ await fs.writeFile(temp+'.json',JSON.stringify({accepted:[{...email,contact:'unpublished-qa-address@example.invalid'}],contact_manifest:audit.contact_manifest}),{flag:'wx'});
+ await assert.rejects(()=>validateAuditedCsv(temp+'.csv'),/CSV\/sidecar mismatch/);cases.push({name:'CSV contact must match its evidence sidecar',status:'PASS'});
+}finally{for(const suffix of ['.csv','.json'])await fs.unlink(temp+suffix).catch(e=>{if(e.code!=='ENOENT')throw e;});}
+const result={checked_at:new Date().toISOString(),eligible_contacts:checks.length,all_contacts_pass:true,negative_cases:cases,csv_roundtrip_pass:true};
+await fs.writeFile('evidence/creator-audit-r2/gate-regressions.json',JSON.stringify(result,null,2));
+console.log(JSON.stringify(result));

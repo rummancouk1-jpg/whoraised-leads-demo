@@ -1,0 +1,1 @@
+import fs from 'node:fs';const j=JSON.parse(fs.readFileSync('evidence/client-readiness/reddit-alternatives/verification.json'));for(const r of j.rows)console.log(r.subreddit,JSON.stringify({text:r.text?.slice(0,1500),secondary:r.secondary?.map(s=>({url:s.url,http:s.http,verified:s.verified,text:s.text?.slice(0,900)}))},null,2));

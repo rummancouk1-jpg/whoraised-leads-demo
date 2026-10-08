@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/evidence/preclient/.session
 
 # next.js
 /.next/
@@ -32,6 +35,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+.agents/
+skills-lock.json
 
 # vercel
 .vercel
@@ -43,3 +49,8 @@ next-env.d.ts
 .claude/
 .next/
 node_modules/
+
+.vercel
+.env*
+!.env.example
+/evidence/client-readiness/.session

@@ -1,0 +1,3 @@
+import fs from 'node:fs/promises';import {neon} from '@neondatabase/serverless';process.loadEnvFile('.env.local');const sql=neon(process.env.DATABASE_URL);const rows=await sql`SELECT slug,data->>'source_url_live' AS source_url_live FROM gg_leads WHERE data ? 'source_url_live'`;
+await fs.writeFile('evidence/client-readiness/source-flags-before.json',JSON.stringify(rows,null,2),{flag:'wx'});
+await sql.transaction([sql`INSERT INTO gg_internal_audit(kind,data) SELECT 'source-health-removed-from-client',jsonb_build_object('slug',slug,'source_url_live',data->>'source_url_live') FROM gg_leads WHERE data ? 'source_url_live'`,sql`UPDATE gg_leads SET data=data-'source_url_live' WHERE data ? 'source_url_live'`]);console.log('Source health moved to internal log:',rows.length);

@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { navigateSession } from "@/lib/session-navigation";
 
 const APP_MAX_W = "mx-auto w-full max-w-[1320px]";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/pipeline", label: "Pipeline" },
+  { href: "/email", label: "Email" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -28,6 +30,8 @@ export function AppNav() {
       >
         <Link
           href="/"
+          prefetch={false}
+          aria-label="GG Outreach dashboard"
           className="group flex shrink-0 items-center gap-2.5 rounded-lg outline-none ring-indigo-400/50 focus-visible:ring-2"
         >
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/25 ring-1 ring-white/10 transition group-hover:shadow-indigo-500/40">
@@ -46,7 +50,7 @@ export function AppNav() {
             </svg>
           </div>
           <span className="hidden text-xs font-medium text-slate-400 transition group-hover:text-slate-300 sm:inline">
-            WhoRaised
+            GG Outreach
           </span>
         </Link>
 
@@ -61,6 +65,7 @@ export function AppNav() {
               <Link
                 key={href}
                 href={href}
+                prefetch={false}
                 role="tab"
                 aria-selected={active}
                 aria-current={active ? "page" : undefined}
@@ -76,7 +81,7 @@ export function AppNav() {
           })}
         </div>
 
-        <div className="hidden w-[72px] sm:block" aria-hidden />
+        <button className="gg-logout" onClick={async () => { const response = await fetch("/api/auth", { method: "DELETE" }); if (response.ok) navigateSession("/login"); }}>Log out</button>
       </div>
     </nav>
   );
