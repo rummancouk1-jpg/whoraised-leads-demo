@@ -27,7 +27,7 @@ export async function proxy(request: NextRequest) {
   const publicAsset = path.startsWith("/_next/") || path.startsWith("/icons/") || path.startsWith("/splash/") || ["/favicon.ico", "/icon.svg", "/apple-touch-icon.png", "/opengraph-image.png", "/robots.txt", "/manifest.webmanifest", "/sw.js", "/offline.html"].includes(path);
   const loginAttempt = path === "/api/auth" && request.method === "POST";
   // Machine endpoints that carry their own bearer secret and are checked again inside the route: OHQ Watch polls and the signup webhook.
-  const machine = path === "/api/ohq/health" || path === "/api/ohq/watch" || (path === "/api/attribution/signup" && request.method === "POST");
+  const machine = ["/api/ohq/health", "/api/ohq/watch", "/api/ohq/reconcile"].includes(path) || (path === "/api/attribution/signup" && request.method === "POST");
   const cron = ["/api/cron/email-snapshot", "/api/cron/instantly-sync", "/api/cron/digest"].includes(path) && !!process.env.CRON_SECRET && equal(request.headers.get("authorization") ?? "", `Bearer ${process.env.CRON_SECRET}`);
   if (path === "/login" || path.startsWith("/go/") || publicAsset || loginAttempt || machine || cron || await validSession(request.cookies.get(SESSION_COOKIE)?.value ?? "")) return secure(NextResponse.next({ request: { headers: requestHeaders } }));
   if (path.startsWith("/api/")) return secure(NextResponse.json({ error: "Please log in." }, { status: 401, headers: { "Cache-Control": "private, no-store" } }));
