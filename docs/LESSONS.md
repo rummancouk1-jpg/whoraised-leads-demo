@@ -76,3 +76,18 @@
 - Measure touch targets on everything that is clickable, including brand links and icon buttons, and measure a checkbox by its label. Check focus-not-obscured by sampling a grid of points on the focused element; a tall scrollable region's centre can sit under a fixed bar while the control is still visible.
 - Exercise optimistic updates and undo with a stateful write mock layered over real reads, so the shared database is never written. Mock only what the environment lacks (the local Instantly key), and make every route handler tolerate a page that closed mid-request.
 - Put a 44 px rule and a reduced-motion rule in one place each. One `@media (pointer: coarse), (max-width: 900px)` block and one blanket `prefers-reduced-motion` block meant every new component inherited both without per-component work.
+
+## R2 — make it run the outreach — 8 October 2026
+
+- Check the hosting plan before designing schedules. Vercel Hobby refused a 15-minute cron at deploy and fires daily crons anywhere in the hour. Design for three triggers (scheduler, an open tab nudging when data is stale, a manual button), make the job idempotent, and make "Monday 9am" a Monday-morning window plus a once-per-week guard.
+- Never sign in to a deployed preview with the app password, and do not assume the local password matches it. Verify with counts-only bearer endpoints (`/api/ohq/reconcile`) and leave the human sign-in to the human.
+- Probe provider field names on real rows, separating required from optional. Instantly omits event timestamps until the event happens and `is_auto_reply` until true; the mapper must read absence as unknown.
+- Probe API scopes on every sync (`leads:read`, `emails:read`), before a campaign exists, so a missing scope shows today and not on launch day.
+- Local, preview and production share one database: label local sync rows (`instantly-local`), keep local errors out of the shared monitor, and show states that do not exist yet with route-mocked fixtures named as such.
+- "Nothing needs you" is false while the sync is failing; an empty state must reflect data freshness.
+- An interactive child inside a button swallows taps: the relative-time tooltip made the centre of a queue row unclickable on iPad WebKit. Use a plain `<time>` inside buttons and links.
+- axe: `<dl><div>` may only contain `dt` and `dd`; a scrolled page puts targets under the sticky header and trips target-size, so scroll to top before that screenshot.
+- `vercel curl` adds about 6 s of CLI overhead; measure server time with curl's own `time_total`. The OHQ 3-second budget held at about 0.85 s.
+- Never remove a git worktree whose `node_modules` is a junction to the main one: Windows deletes the target's contents. `npm install` repaired it.
+- Tests must not read files that product rounds relocate (`public/gg-outreach-examples.csv`); build fixtures inline.
+- Compare Lighthouse against the previous tag built the same way, on the same machine, alternating runs, before blaming or clearing the code.
