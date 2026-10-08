@@ -62,3 +62,17 @@
 - Define cookie and server-side session expiry together; test correct-password lockout and replay after logout.
 - Abort polling reads before document unload. WebKit reports navigation cancellations differently; run its full view/state, viewport and motion matrix with axe checks.
 - Reserve loaded content height and split pipeline code by view. Keep individual mobile and desktop Lighthouse reports for all three pages.
+
+## Design elevation — 8 October 2026
+
+- Server-render the headline numbers, not only the page shell. A status line that waits for two client fetches put mobile LCP at 3.6 s and CLS at 0.245 (home performance 72). Computing the lead counts and reading the newest saved Instantly snapshot in the layout put the full sentence in the first HTML (performance 96, CLS 0) while the list and board keep their skeletons. Each half degrades to `null` independently, and a 2.5 s cap keeps a slow database from holding the page.
+- A skeleton must not wear the class an audit uses as its "loaded" signal. The board skeleton reused `.gg-pipeline-card`, so any "wait for a card" script would pass on a loading state, the same failure the first pipeline screenshots had. Use a distinct class with shared CSS.
+- Register the service worker only inside the signed-in layout. Registering it from the root layout let the login page recreate a cache right after logout; the logout gate (caches, registrations, `gg-` storage, server session, API 401) caught it.
+- A test that reuses one login across browsers revokes it when the first browser logs out. Log in per browser iteration and revoke at the end of each.
+- Playwright's WebKit build crashes on `setOffline` with an active worker. Test the offline fallback in Chromium, and in WebKit assert that the offline page is precached.
+- axe rejects `aria-label` on `<time>`; put the exact time in visually hidden text instead. A page header outside `<main>` is a second banner landmark and leaves content outside any landmark; wrap headers inside `main` or use a plain `div`.
+- Words the earlier audit banned in client copy still apply to new copy. "Unavailable" is not an error message here: say what could not be read ("couldn't read inbox status").
+- iOS standalone `black-translucent` draws light status text over content; in light appearance the clock disappears. Use the `default` status bar.
+- Measure touch targets on everything that is clickable, including brand links and icon buttons, and measure a checkbox by its label. Check focus-not-obscured by sampling a grid of points on the focused element; a tall scrollable region's centre can sit under a fixed bar while the control is still visible.
+- Exercise optimistic updates and undo with a stateful write mock layered over real reads, so the shared database is never written. Mock only what the environment lacks (the local Instantly key), and make every route handler tolerate a page that closed mid-request.
+- Put a 44 px rule and a reduced-motion rule in one place each. One `@media (pointer: coarse), (max-width: 900px)` block and one blanket `prefers-reduced-motion` block meant every new component inherited both without per-component work.

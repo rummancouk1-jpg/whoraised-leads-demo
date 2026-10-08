@@ -23,7 +23,8 @@ export async function proxy(request: NextRequest) {
     url.hostname = "gg-tourney-hub.vercel.app";
     return secure(NextResponse.redirect(url, 307));
   }
-  const publicAsset = path.startsWith("/_next/") || ["/favicon.ico", "/icon.svg", "/opengraph-image.png", "/robots.txt", "/manifest.webmanifest"].includes(path);
+  // Static, data-free assets only. The service worker, offline page, icons and launch images carry nothing private.
+  const publicAsset = path.startsWith("/_next/") || path.startsWith("/icons/") || path.startsWith("/splash/") || ["/favicon.ico", "/icon.svg", "/apple-touch-icon.png", "/opengraph-image.png", "/robots.txt", "/manifest.webmanifest", "/sw.js", "/offline.html"].includes(path);
   const loginAttempt = path === "/api/auth" && request.method === "POST";
   const cron = path === "/api/cron/email-snapshot" && !!process.env.CRON_SECRET && equal(request.headers.get("authorization") ?? "", `Bearer ${process.env.CRON_SECRET}`);
   if (path === "/login" || path.startsWith("/go/") || publicAsset || loginAttempt || cron || await validSession(request.cookies.get(SESSION_COOKIE)?.value ?? "")) return secure(NextResponse.next({ request: { headers: requestHeaders } }));

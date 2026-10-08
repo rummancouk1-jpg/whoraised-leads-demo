@@ -1,0 +1,5 @@
+import fs from 'node:fs';const dir='evidence/design-elevation/matrix';let bad=0,states=0,features=0,runs=0;
+for(const cfg of fs.readdirSync(dir)){const f=`${dir}/${cfg}/${cfg}.json`;if(!fs.existsSync(f))continue;for(const run of JSON.parse(fs.readFileSync(f,'utf8'))){runs++;states+=run.states.length;features+=run.features.length;
+ const lines=[];if(run.failure)lines.push('  FAILURE '+run.failure);for(const s of run.states)if(s.status!=='PASS')lines.push(`  STATE ${s.state} `+JSON.stringify({o:s.overflow,c:s.copyHits,t:s.touchTargets.slice(0,5),a:s.axe.map(a=>a.id+':'+a.nodes[0])}).slice(0,700));for(const x of run.features)if(x.status!=='PASS')lines.push('  FEATURE '+x.label+' :: '+x.error);if(run.errors.length)lines.push('  ERRORS '+JSON.stringify(run.errors.slice(0,3)));
+ console.log(run.config,run.scheme,run.motion,run.status,`${run.states.length} states ${run.features.length} features`);if(run.status!=='PASS'){bad++;console.log(lines.join('\n'));}}}
+console.log(`\n${runs} runs, ${states} state captures, ${features} feature checks, ${bad} failing runs`);

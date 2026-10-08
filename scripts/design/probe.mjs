@@ -1,0 +1,1 @@
+import {login,logout} from './lib.mjs';const o=process.argv[2];const c=await login(o);const r=await fetch(o+'/'+process.argv[3],{headers:{Cookie:c}});const t=await r.text();console.log(r.status,t.slice(0,Number(process.argv[4]||1500)));await logout(o,c);

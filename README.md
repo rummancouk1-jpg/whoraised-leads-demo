@@ -39,3 +39,15 @@ node scripts/render-deployed-evidence.mjs
 ```
 
 `npm test` checks CSV/scoring/draft/compound contracts. The deployed gate uses two independent browsers and all requested widths/motion modes against production, imports uniquely marked EXAMPLE records, then removes only those QA records. The [original implementation report](docs/GG_OUTREACH_REPORT.md) is historical. Current [parity matrix](evidence/deployed/PARITY.md) and [screenshot gallery](evidence/deployed/index.html) record live verification.
+
+## Design system, keyboard and install
+
+Design direction and the component-level decisions are in [docs/DESIGN_DIRECTION.md](docs/DESIGN_DIRECTION.md). The app follows the system light/dark setting (override from the appearance button or the palette).
+
+Keyboard (desktop): `⌘K` / `Ctrl K` command palette, `/` search leads, `g h` / `g p` / `g e` go to Home / Pipeline / Email, `j` / `k` walk the list or board, `⌘Z` undo the last stage move, `?` lists shortcuts. On phones and tablets the Search tab opens the same palette and each pipeline card has a stage menu instead of dragging.
+
+Saved views and the recent-leads list live in the viewer's browser only (`gg-` keys in local storage); logging out clears them. The home status line is built from the Neon records and the Instantly snapshot, never from constants.
+
+Install: open the app in Safari (Share → Add to Home Screen) or Chrome (Install app). The service worker (`public/sw.js`) caches hashed static assets, icons and launch images only; pages and API responses always come from the network, and logging out deletes every cache. Regenerate icons and launch images with `node scripts/design/make-icons.mjs`.
+
+Design verification: `npm run build && node scripts/design/serve.mjs 3101`, then `node scripts/design/matrix.mjs <config>` for each of `chrome-390`, `webkit-iphone-390`, `webkit-ipad-820`, `chrome-1440`, `msedge-1440`, `webkit-1440`; `node scripts/design/pwa.mjs`; `node scripts/design/contrast.mjs`.
