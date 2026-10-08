@@ -1,6 +1,6 @@
 // Re-runs the ten original audit scripts against ORIGIN with a fresh evidence root.  usage: node regression.mjs [origin]
 import fs from 'node:fs/promises';import {execFileSync} from 'node:child_process';import {login,logout,loadEnv} from './lib.mjs';import path from 'node:path';
-const root='evidence/design-elevation/regression',origin=process.argv[2]||'http://localhost:3101';
+const root=(process.env.EVIDENCE_ROOT||'evidence/design-elevation')+'/regression',origin=process.argv[2]||'http://localhost:3101';
 const scripts=process.env.AUDIT_SCRIPTS?process.env.AUDIT_SCRIPTS.split(','):['preclient-access','preclient-auth','preclient-robots','preclient-secrets','preclient-numbers','preclient-flows','preclient-crawl','preclient-scroll','preclient-data-final','preclient-contacts-final'];
 await fs.mkdir(root+'/screenshots',{recursive:true});
 // Seed read-only inputs from the previous round (source captures and saved JSON) so the data gates have their baselines.
