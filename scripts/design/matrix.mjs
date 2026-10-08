@@ -19,6 +19,8 @@ const cfg = CONFIGS[name]; if (!cfg) throw new Error('unknown config ' + name);
 const out = `${root}/matrix/${name}`; await fs.mkdir(out, { recursive: true });
 const cookie = await login(origin); const { name: cookieName, value: cookieValue } = cookieParts(cookie);
 const real = await (await fetch(origin + '/api/leads', { headers: { Cookie: cookie } })).json();
+// Real sync against the local harness first, so "real data" checks start from a fresh, healthy sync (labelled instantly-local in the shared database).
+await fetch(origin + '/api/sync?manual=1', { method: 'POST', headers: { Cookie: cookie, Origin: origin } });
 const clay = real.leads.find(l => l.tracked_slug === 'audit-claytrader') ?? real.leads[0];
 const browser = await (cfg.engine === 'webkit' ? webkit.launch() : chromium.launch({ channel: cfg.channel }));
 const COPY = /\bQA\b|Unavailable|\bnull\b|\bTODO\b|lorem|\btest\b|\bplaceholder\b|demo pass|WhoRaised|undefined|NaN\b/gi;
@@ -125,7 +127,7 @@ for (const scheme of ['light', 'dark']) for (const motion of ['normal', 'reduce'
       await card.locator('.gg-card-stage').selectOption(to);
       await expect(p.locator(`.gg-column[data-stage="${to}"] .gg-pipeline-card[data-lead="${clay.tracked_slug}"]`)).toBeVisible({ timeout: 1000 });
       const toast = p.getByRole('status').filter({ hasText: `Moved ${clay.name} to ${to}` }); await expect(toast).toBeVisible();
-      await toast.getByRole('button', { name: 'Undo' }).focus(); await shot('toast-undo');
+      await toast.getByRole('button', { name: 'Undo' }).focus(); await p.evaluate(() => window.scrollTo(0, 0)); await shot('toast-undo');
       await toast.getByRole('button', { name: 'Undo' }).click();
       await expect(p.locator(`.gg-column[data-stage="${from}"] .gg-pipeline-card[data-lead="${clay.tracked_slug}"]`)).toBeVisible();
       await expect.poll(() => writes.calls.filter(x => x.slug === clay.tracked_slug).map(x => x.patch.stage).join('>'), { timeout: 8000 }).toContain(from);
@@ -144,6 +146,7 @@ for (const scheme of ['light', 'dark']) for (const motion of ['normal', 'reduce'
     await home();
     await feature('real data: queue says nothing is due yet and attribution never prints zeros', async () => {
       await expect(p.locator('.gg-needs')).toBeVisible();
+      await expect(p.locator('.gg-needs')).toContainText(/Nothing yet|You're clear/, { timeout: 20000 });
       const needs = await p.locator('.gg-needs').innerText(); const attr = await p.locator('#attr-title').locator('xpath=ancestor::section').innerText();
       if (!/Nothing yet|You're clear/.test(needs)) throw new Error('queue copy: ' + needs);
       if (!/Attribution starts when the signup link is live/.test(attr)) throw new Error('attribution copy: ' + attr);

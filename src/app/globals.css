@@ -501,7 +501,11 @@ main:focus { outline: none; }
 .gg-timeline-skeleton { display: grid; gap: var(--s-3); min-height: 9rem; }
 .gg-attr-wait { padding: var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--r-2); background: var(--surface); }
 .gg-attr-wait strong { font-weight: 650; }
-.gg-digest-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--s-2) 0 var(--s-3); font-size: var(--step--1); color: var(--text-2); }
+.gg-digest-state { margin: var(--s-2) 0 var(--s-3); font-size: var(--step--1); color: var(--text-2); line-height: 1.5; }
+.gg-digest-state .gg-dot { margin-right: 8px; vertical-align: middle; }
+.gg-lead-panel > .gg-sync-facts, .gg-lead-panel > .gg-digest-state, .gg-lead-panel > .gg-digest, .gg-lead-panel > .gg-sync-action, .gg-lead-panel > p:not(.gg-error) { margin-inline: var(--s-4); }
+.gg-lead-panel > .gg-sync-action { margin-bottom: var(--s-4); }
+.gg-lead-panel > .gg-digest { width: auto; }
 .gg-digest { display: grid; gap: var(--s-3); padding: var(--s-5); border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface); max-width: 40rem; }
 .gg-digest h3 { margin-top: var(--s-2); font-size: var(--step-0); font-weight: 650; }
 .gg-digest-subject { font-size: var(--step--1); } .gg-digest-status { font-size: var(--step-1); font-weight: 650; line-height: 1.35; }

@@ -38,8 +38,8 @@ export async function loadAttribution(leads: Lead[]): Promise<Attribution> {
   return { live: true, since, rows, clicks: rows.reduce((n, r) => n + r.clicks, 0), signups: rows.reduce((n, r) => n + r.signups, 0), lastSignupAt: lastSignup };
 }
 
-export async function getActivity(): Promise<ActivityResponse> {
-  const leads = await getLeads();
+export async function getActivity(known?: Lead[]): Promise<ActivityResponse> {
+  const leads = known ?? await getLeads();
   const [stats, sync, attribution, errors] = await Promise.all([loadStats(), currentSyncHealth(), loadAttribution(leads), recentErrors(24)]);
   return { generatedAt: new Date().toISOString(), sync, queue: buildQueue(leads, stats), stats, attribution, errors24h: errors.reduce((n, e) => n + e.count, 0) };
 }

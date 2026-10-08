@@ -15,6 +15,8 @@ export type InitialStatus = { summary: LeadSummary | null; snapshot: EmailMetric
  */
 export async function getInitialStatus(): Promise<InitialStatus> {
   const within = <T,>(work: Promise<T>, ms: number) => Promise.race([work, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
-  const [leads, snapshot, activity] = await Promise.allSettled([within(getLeads(), 2500), within(latestSnapshot(), 2500), within(getActivity(), 2500)]);
+  // One lead read feeds both the counts and the action queue.
+  const leadsRead = within(getLeads(), 2500);
+  const [leads, snapshot, activity] = await Promise.allSettled([leadsRead, within(latestSnapshot(), 2500), within(leadsRead.then(l => getActivity(l)), 2500)]);
   return { summary: leads.status === "fulfilled" ? summarizeLeads(leads.value) : null, snapshot: snapshot.status === "fulfilled" ? snapshot.value : null, activity: activity.status === "fulfilled" ? activity.value : null };
 }

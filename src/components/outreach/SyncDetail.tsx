@@ -20,7 +20,7 @@ export function SyncDetail() {
         {c && <div className="gg-facts-wide"><dt>Last good sync saw</dt><dd>{String(c.campaign) !== "found" ? String(c.campaign) : `${c.matched} of your leads in Instantly · ${c.sent} sent · ${c.opened} opened · ${c.replied} replied · ${c.bounced} bounced`}</dd></div>}
         {sync.lastError && <div className="gg-facts-wide"><dt>Error{sync.consecutiveFailures > 1 ? ` (${sync.consecutiveFailures} runs in a row)` : ""}</dt><dd>{sync.lastError}</dd></div>}
       </dl>
-      <button className="gg-button gg-secondary" disabled={syncing} onClick={() => void syncNow()}>{syncing ? "Syncing…" : "Sync now"}</button>
+      <button className="gg-button gg-secondary gg-sync-action" disabled={syncing} onClick={() => void syncNow()}>{syncing ? "Syncing…" : "Sync now"}</button>
     </>}
   </section>;
 }

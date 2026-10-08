@@ -115,3 +115,15 @@ test("error monitor scrubs addresses and tokens, collapses slugs, and fingerprin
   expect(fingerprintOf("server", "Error", "/x", "a")).not.toBe(fingerprintOf("browser", "Error", "/x", "a"));
   expect(fingerprintOf("server", "Error", "/x", "a")).toMatch(/^[0-9a-f]{64}$/);
 });
+
+test("reconcile: provider source vs app model; a drifted figure fails the check", async () => {
+  const { reconcile } = await import("../src/lib/reconcile");
+  const source = { day: "2026-10-20", accounts: [{ email: "a@x.com", warmup_status: 1, stat_warmup_score: 98, daily_limit: 30 }], daily: [{ email_account: "a@x.com", date: "2026-10-20", sent: 4 }], campaignRaw: { id: "c1", analytics: { emails_sent_count: 10, open_count_unique: 6, reply_count_unique: 2, bounced_count: 1 }, emailsByType: { "1": 10, "2": 2 }, leads: 5 } };
+  const live = { fetchedAt: "", day: "2026-10-20", inboxes: [{ email: "a@x.com", warmup: "Active", health: 98, sentToday: 4, dailyLimit: 30 }], campaign: { id: "c1", name: "n", sent: 10, contacted: 5, opened: 6, replied: 2, bounced: 1, unsubscribed: 0 }, campaignMessage: "", batches: [] };
+  expect(reconcile(source, live, { sent: 10, matched: 5 }).every(c => c.ok)).toBe(true);
+  const drift = reconcile(source, { ...live, inboxes: [{ ...live.inboxes[0], health: 97 }], campaign: { ...live.campaign, opened: 5 } }, { sent: 10, matched: 5 });
+  expect(drift.filter(c => !c.ok).map(c => c.label.split(":")[0].slice(0, 20))).toHaveLength(2);
+  expect(reconcile(source, live, { sent: 11, matched: 5 }).some(c => !c.ok)).toBe(true);
+  const none = reconcile({ ...source, campaignRaw: { id: null, message: "No campaign yet" } }, { ...live, campaign: null }, { matched: 0 });
+  expect(none.at(-1)?.ok).toBe(true);
+});

@@ -28,13 +28,14 @@ export function NeedsAction() {
       <span className="gg-fresh">{data ? <RelTime value={fetchedAt ?? data.generatedAt} prefix="Updated " /> : null}</span>
     </div>
     {!data ? (error ? <p className="gg-needs-empty" role="alert">Couldn&apos;t read the action queue. It will retry shortly.</p> : <div className="gg-needs-skeleton" aria-hidden="true"><Skeleton className="gg-sk-hero-rest" /><Skeleton className="gg-sk-hero-rest" /></div>)
+      : !queue.length && (data.sync.state === "failing" || data.sync.state === "stale") ? <p className="gg-needs-empty">Can&apos;t confirm what needs you: the last sync is out of date. See the warning above.</p>
       : !queue.length ? <p className="gg-needs-empty">{sentSomething || data.sync.state === "ok" && data.sync.counts && Number(data.sync.counts.matched) > 0 ? "You're clear. No replies waiting, nothing bounced, no follow-ups due." : "Nothing yet. Replies, bounces and follow-ups appear here once sending starts."}</p>
       : <>
         <p className="gg-needs-summary">{summary}</p>
         <ul className="gg-needs-list">{shown.map(q => <li key={q.slug + q.kind}>
           <button className="gg-needs-item" onClick={() => openLead(q.slug)} aria-label={`${KIND[q.kind].label}: ${q.name}. ${q.reason}. Open lead`}>
             <span className={`gg-needs-kind gg-needs-${KIND[q.kind].tone}`}><span className="gg-dot" aria-hidden="true" />{KIND[q.kind].label}</span>
-            <span className="gg-needs-main"><strong>{q.name}</strong><small>{q.reason} · <RelTime value={q.since} /></small></span>
+            <span className="gg-needs-main"><strong>{q.name}</strong><small>{q.reason}{q.kind !== "followup" && <> · <RelTime value={q.since} /></>}</small></span>
             <ArrowIcon />
           </button>
         </li>)}</ul>
