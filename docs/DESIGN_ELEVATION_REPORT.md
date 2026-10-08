@@ -32,7 +32,7 @@
 | Pipeline | 91 · 100 · 100 / 100 · 100 · 100 | 95 · 100 · 100 / 99 · 100 · 100 |
 | Email | 98 · 100 · 100 / 99 · 100 · 100 | 96 · 100 · 100 / 100 · 100 · 100 |
 
-CLS is 0 on five of six runs (0.081 on mobile pipeline). The first build scored 72 on mobile home (CLS 0.245, LCP 3.6 s) until the status sentence was server-rendered.
+CLS is 0.001 or lower on five of six runs (0.081 on mobile pipeline, under the 0.1 threshold). The first build scored 72 on mobile home (CLS 0.245, LCP 3.6 s) until the status sentence was server-rendered.
 
 ### What the matrix covers
 
