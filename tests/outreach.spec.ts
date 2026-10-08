@@ -18,7 +18,8 @@ const notes = 'Follow up on Friday, after earnings.\nAsked about "daily picks".'
 test("CSV, score, draft and compound loop contracts", () => {
   expect(parseLeadsCsv(csv)).toEqual(fixture);
   expect(parseLeadsCsv(fs.readFileSync("public/gg-outreach-template.csv", "utf8"))).toEqual([]);
-  const examples = parseLeadsCsv(fs.readFileSync("public/gg-outreach-examples.csv", "utf8"));
+  // The shipped example file was removed from public/ for the client (no test data in the client view); build equivalents inline.
+  const examples = [1, 2, 3].map(n => makeLead({ name: `EXAMPLE Creator ${n}`, handle: `@example-${n}`, tracked_slug: `example-creator-${n}`, stage: "Joined", signups: 500 }));
   expect(examples).toHaveLength(3); expect(examples.every(l => l.name.startsWith("EXAMPLE"))).toBe(true);
   expect(groupResults(examples, l => l.platform)).toEqual([]);
   expect(fitScore(fixture[0]).score).toBe(100);

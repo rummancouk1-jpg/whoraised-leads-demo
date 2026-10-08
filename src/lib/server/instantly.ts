@@ -3,18 +3,18 @@ import type { CampaignMetrics, EmailMetrics, SendDay } from "@/types/email";
 import { isWorkspaceInbox } from "./email-scope";
 type RecordValue = Record<string, unknown>;
 function number(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null; }
-function records(value: unknown): RecordValue[] {
+export function records(value: unknown): RecordValue[] {
   if (!Array.isArray(value) || value.some(v => !v || typeof v !== "object")) throw new Error("Instantly returned an unexpected response.");
   return value as RecordValue[];
 }
-async function api(path: string, query = new URLSearchParams()) {
+export async function api(path: string, query = new URLSearchParams(), body?: unknown) {
   const key = process.env.INSTANTLY_API_KEY;
   if (!key) throw new Error("Instantly is not connected. Add INSTANTLY_API_KEY to the server environment.");
-  const response = await fetch(`https://api.instantly.ai/api/v2/${path}?${query}`, { headers: { Authorization: `Bearer ${key}` }, cache: "no-store", signal: AbortSignal.timeout(20000) });
+  const response = await fetch(`https://api.instantly.ai/api/v2/${path}?${query}`, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? { Authorization: `Bearer ${key}` } : { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`Instantly read failed (HTTP ${response.status}). Check API key read scopes, plan and availability.`);
   return response.json();
 }
-async function list(path: "accounts" | "campaigns") {
+export async function list(path: "accounts" | "campaigns") {
   const items: RecordValue[] = [];
   let cursor = "";
   for (let page = 0; page < 100; page++) {
@@ -80,9 +80,56 @@ export async function fetchEmailSource() {
   const query = new URLSearchParams({ start_date: day, end_date: day });
   for (const account of accounts) query.append("emails", String(account.email));
   const daily = accounts.length ? records(await api("accounts/analytics/daily", query)) : [];
+  // Provider-side totals for the selected campaign, computed straight from the raw rows (no mapping to our leads), so the
+  // per-lead sync can be reconciled against them: campaign analytics row, summed lead counters, email counts by type.
+  let campaignRaw: unknown = null;
+  try {
+    const selected = await selectCampaignId();
+    if (selected.id) {
+      const [analytics, activity] = await Promise.all([api("campaigns/analytics", new URLSearchParams({ id: selected.id })), fetchCampaignActivity(selected.id)]);
+      const row = records(analytics).find(r => r.campaign_id === selected.id) ?? null;
+      const sum = (key: string) => activity.leads.reduce((n, l) => n + (number(l[key]) ?? 0), 0);
+      const byType: Record<string, number> = {};
+      for (const e of activity.emails) byType[String(e.ue_type)] = (byType[String(e.ue_type)] ?? 0) + 1;
+      campaignRaw = { id: selected.id, analytics: row && { emails_sent_count: row.emails_sent_count, contacted_count: row.contacted_count, open_count_unique: row.open_count_unique, reply_count_unique: row.reply_count_unique, bounced_count: row.bounced_count }, leads: activity.leads.length, leadOpens: sum("email_open_count"), leadReplies: sum("email_reply_count"), leadClicks: sum("email_click_count"), leadsBounced: activity.leads.filter(l => l.status === -1).length, emailsByType: byType };
+    } else campaignRaw = { id: null, message: selected.message };
+  } catch (e) { campaignRaw = { error: e instanceof Error ? e.message.slice(0, 200) : "failed" }; }
   return {
+    campaignRaw,
     fetchedAt: new Date().toISOString(), day, provider: "Instantly API v2",
     accounts: accounts.map(a => ({ email: a.email, warmup_status: a.warmup_status, stat_warmup_score: a.stat_warmup_score, daily_limit: a.daily_limit })),
     daily: daily.map(a => ({ email_account: a.email_account, date: a.date, sent: a.sent })),
   };
+}
+
+/** The one tournament campaign (explicit INSTANTLY_CAMPAIGN_ID, otherwise an unambiguous name match), or null. */
+export async function selectCampaignId(): Promise<{ id: string | null; message: string }> {
+  const configured = process.env.INSTANTLY_CAMPAIGN_ID;
+  const campaigns = await list("campaigns");
+  const matches = configured ? campaigns.filter(c => c.id === configured) : campaigns.filter(c => /gg outreach|gap gambler|earnings tournament/i.test(String(c.name)));
+  if (configured && !matches.length) throw new Error("Configured Instantly campaign was not found. Check INSTANTLY_CAMPAIGN_ID.");
+  if (matches.length > 1) return { id: null, message: "Multiple tournament campaigns found. Set INSTANTLY_CAMPAIGN_ID to select one." };
+  return matches.length ? { id: String(matches[0].id), message: "" } : { id: null, message: "No campaign yet" };
+}
+
+/** Every lead row and every campaign email (sends and inbound replies). Bounded so a runaway cursor cannot loop. */
+export async function fetchCampaignActivity(campaignId: string) {
+  const leads: RecordValue[] = [], emails: RecordValue[] = [];
+  let cursor = "";
+  for (let page = 0; page < 50; page++) {
+    const data = await api("leads/list", new URLSearchParams(), { campaign: campaignId, limit: 100, ...(cursor ? { starting_after: cursor } : {}) });
+    leads.push(...records(data.items));
+    if (!data.next_starting_after || data.next_starting_after === cursor) break;
+    cursor = data.next_starting_after;
+  }
+  cursor = "";
+  for (let page = 0; page < 50; page++) {
+    const query = new URLSearchParams({ campaign_id: campaignId, limit: "100", sort_order: "desc" });
+    if (cursor) query.set("starting_after", cursor);
+    const data = await api("emails", query);
+    emails.push(...records(data.items));
+    if (!data.next_starting_after || data.next_starting_after === cursor) break;
+    cursor = data.next_starting_after;
+  }
+  return { leads, emails };
 }

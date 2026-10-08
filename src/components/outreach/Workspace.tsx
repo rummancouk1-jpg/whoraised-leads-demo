@@ -11,6 +11,9 @@ import { ClickAnalytics } from "./ClickAnalytics";
 import { SavedViews } from "./SavedViews";
 import { StatusLine } from "./StatusLine";
 import { StatusStrip } from "./StatusStrip";
+import { NeedsAction } from "./NeedsAction";
+import { Attribution } from "./Attribution";
+import { SyncBanner } from "@/components/shell/SyncBanner";
 import { PipelineGlance } from "./PipelineGlance";
 import { RelTime } from "@/components/ui/RelTime";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -46,7 +49,9 @@ export function Workspace({ pipeline = false }: { pipeline?: boolean }) {
     <main id="main" tabIndex={-1} aria-labelledby="page-title">
     {pipeline && <div className="gg-workspace-header"><div className="gg-container gg-header-content"><div><p className="gg-eyebrow">Gap Gambler / Earnings Tournament</p><h1 id="page-title">Pipeline</h1><p>Recruit finance creators and trading communities.</p></div></div></div>}
     <div className="gg-container">
+      <SyncBanner />
       <StatusLine compact={pipeline} />
+      {!pipeline && <NeedsAction />}
       {!pipeline && <StatusStrip />}
       <div className="gg-tournament" role="note"><strong>Oct 19 – Nov 13</strong><span>Free entry · One daily pick · Longest streak wins $1,000 · U.S. 18+</span></div>
       {error && <div className="gg-error" role="alert">{error} <button onClick={() => { void retrySave(); void refresh(); }}>Retry connection / saving</button></div>}
@@ -81,7 +86,7 @@ export function Workspace({ pipeline = false }: { pipeline?: boolean }) {
           : pipeline ? <><p className="gg-board-hint">Drag a card by its grip, or use the stage menu on each card. Keyboard: focus a grip, Space, arrow keys, Space. Scroll sideways for every column.</p><Board leads={visible} onOpen={open} /></>
           : <div className="gg-table-scroll" role="region" aria-label="Lead records" tabIndex={0}><table className="gg-table"><thead><tr>{[["Name / handle", "c-name"], ["Priority score", "c-score"], ["Platform", "c-platform"], ["Group", "c-group"], ["Audience", "c-audience"], ["Niche", "c-niche"], ["U.S. focus", "c-us"], ["Stage", "c-stage"], ["Clicks", "c-clicks"], ["Signups (manual)", "c-signups"], ["Last touch", "c-touch"], ["Draft", "c-draft"]].map(([h, c]) => <th key={h} scope="col" className={c}>{h}</th>)}</tr></thead><tbody>{visible.map(l => <tr key={l.tracked_slug}><td className="c-name"><button className="gg-name-button" onClick={() => open(l)}>{l.name}<small>{l.handle}</small></button></td><td className="c-score"><span className="gg-score">{l.priority_score ?? fitScore(l, weights).score}</span></td><td className="c-platform">{l.platform}</td><td className="c-group">{leadGroup(l)}</td><td className="c-audience">{l.audience_size.toLocaleString()}</td><td className="c-niche">{l.niche}</td><td className="c-us">{l.us_focus}</td><td className="c-stage"><span className={`gg-stage-badge gg-stage-${l.stage.toLowerCase()}`}><span className="gg-stage-dot" aria-hidden="true" />{l.stage}</span></td><td className="c-clicks">{clicks ? clicksBySlug.get(l.tracked_slug) ?? 0 : "—"}</td><td className="c-signups">{l.signups}</td><td className="c-touch">{l.last_touch ? <RelTime value={l.last_touch} /> : "—"}</td><td className="c-draft"><button className="gg-button gg-secondary gg-small" onClick={() => open(l)} aria-label={`Draft for ${l.name}`}>Draft ↗</button></td></tr>)}</tbody></table></div>}
       </section>
-      {!pipeline && <><ClickAnalytics scopedLeads={real} /><ConversionLoop scopedLeads={real} /></>}
+      {!pipeline && <><ClickAnalytics scopedLeads={real} /><Attribution /><ConversionLoop scopedLeads={real} /></>}
       <p className="gg-storage-note"><span role="status">{saveStatus}</span> {savedAt && !loading ? <>(checked <RelTime value={savedAt} />) </> : null}Other viewers receive changes within a few seconds. Export CSV for a backup.</p>
     </div>
     </main>

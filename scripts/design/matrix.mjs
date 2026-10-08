@@ -4,7 +4,7 @@ process.on('unhandledRejection', e => console.error('unhandled rejection (ignore
 import fs from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 import { chromium, webkit, devices, expect as baseExpect } from '@playwright/test';
-import { root, login, logout, cookieParts, mockEmail, mockWrites } from './lib.mjs';
+import { root, login, logout, cookieParts, mockEmail, mockWrites, mockActivity } from './lib.mjs';
 const expect = baseExpect.configure({ timeout: 45000 });
 const CONFIGS = {
   'chrome-390': { engine: 'chromium', channel: 'chrome', width: 390, height: 844, touch: true, ctx: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
@@ -35,7 +35,7 @@ for (const scheme of ['light', 'dark']) for (const motion of ['normal', 'reduce'
   let p = await c.newPage();
   const run = { config: name, scheme, motion, states: [], features: [], errors: [], status: 'PASS' };
   let expectedFault = false, faultUntil = 0;
-  const attach = page => { page.on('pageerror', e => { if (!/access control|cancel|abort/i.test(e.message)) run.errors.push({ type: 'runtime', message: e.message }); }); page.on('console', m => { if (m.type() === 'error' && !expectedFault && !(Date.now() < faultUntil && /Failed to load resource.*(50[34]|404)/.test(m.text()))) run.errors.push({ type: 'console', message: m.text() }); }); };
+  const attach = page => { page.on('pageerror', e => { if (!/access control|cancel|abort|matrix probe/i.test(e.message)) run.errors.push({ type: 'runtime', message: e.message }); }); page.on('console', m => { if (m.type() === 'error' && !expectedFault && !(Date.now() < faultUntil && /Failed to load resource.*(50[34]|404)/.test(m.text()))) run.errors.push({ type: 'console', message: m.text() }); }); };
   attach(p);
   const feature = async (label, fn) => { try { const detail = await fn(); run.features.push({ label, status: 'PASS', detail }); } catch (e) { run.status = 'FAIL'; run.features.push({ label, status: 'FAIL', error: String(e.message).split('\n')[0].slice(0, 300) }); await p.screenshot({ path: `${out}/${prefix}-FAIL-${label.replace(/\W+/g, '-')}.png` }).catch(() => {}); } };
 
@@ -140,6 +140,55 @@ for (const scheme of ['light', 'dark']) for (const motion of ['normal', 'reduce'
 
     // email
     await email(); await shot('email');
+    // ── R2: the outreach layer (queue, timeline, freshness, sync health, attribution, digest, error capture)
+    await home();
+    await feature('real data: queue says nothing is due yet and attribution never prints zeros', async () => {
+      await expect(p.locator('.gg-needs')).toBeVisible();
+      const needs = await p.locator('.gg-needs').innerText(); const attr = await p.locator('#attr-title').locator('xpath=ancestor::section').innerText();
+      if (!/Nothing yet|You're clear/.test(needs)) throw new Error('queue copy: ' + needs);
+      if (!/Attribution starts when the signup link is live/.test(attr)) throw new Error('attribution copy: ' + attr);
+      if (await p.locator('#attr-title').locator('xpath=ancestor::section//table').count()) throw new Error('attribution table shown before the link is live');
+      await p.locator('.gg-needs').scrollIntoViewIfNeeded(); await shot('real-needs-empty'); return { needs: needs.replace(/\s+/g, ' ').slice(0, 120) };
+    });
+    await feature('every figure carries an "Updated" stamp', async () => {
+      await expect(p.locator('.gg-status-strip > div').first().locator('.gg-fresh')).toContainText(/(Updated|Saved).*(ago|just now|minute|second)/i, { timeout: 20000 });
+      const tiles = await p.locator('.gg-status-strip > div').evaluateAll(els => els.map(e => ({ label: e.querySelector('p')?.textContent, stamp: e.querySelector('.gg-fresh')?.textContent })));
+      const missing = tiles.filter(t => !/(Updated|Saved)/.test(t.stamp || '')); if (missing.length) throw new Error('no stamp on: ' + JSON.stringify(missing)); return tiles;
+    });
+    await feature('sync indicator names the last good sync', async () => { const t = await p.locator('.gg-sync-pill').first().innerText(); if (!/Synced|not synced|Sync/i.test(t)) throw new Error(t); return t; });
+    for (const kind of ['busy', 'attributed']) await feature(`fixture "${kind}": queue lists replies, bounces and follow-ups; one tap opens the lead with its timeline`, async () => {
+      const fx = await mockActivity(p, kind, real.leads);
+      await home(); await expect(p.locator('.gg-needs-item')).toHaveCount(4); await p.locator('.gg-needs').scrollIntoViewIfNeeded(); await shot(`fixture-${kind}-queue`);
+      const first = p.locator('.gg-needs-item').first(); const name = fx.fx.queue[0].name; await first.click();
+      await expect(p.getByRole('dialog', { name })).toBeVisible(); await expect(p.locator('.gg-timeline li')).toHaveCount(5);
+      await expect(p.locator('.gg-timeline li.gg-tl-done')).toHaveCount(3); await shot(`fixture-${kind}-timeline`); await closeDialog();
+      if (kind === 'attributed') { await p.locator('#attr-title').scrollIntoViewIfNeeded(); await expect(p.getByRole('region', { name: 'Signups per creator' }).locator('tbody tr')).toHaveCount(4); await shot('fixture-attribution-live'); }
+      await p.unrouteAll({ behavior: 'wait' });
+    });
+    for (const kind of ['failing', 'stale']) await feature(`fixture "${kind}": a visible warning with the last good time and a way to retry`, async () => {
+      const fx = await mockActivity(p, kind, real.leads); await home();
+      const banner = p.locator('.gg-sync-banner'); await expect(banner).toBeVisible(); const text = await banner.innerText();
+      if (!/ago|minute|hour/.test(text) || !/out of date/.test(text)) throw new Error('banner: ' + text);
+      await expect(p.locator('.gg-sync-pill').first()).toContainText(kind === 'failing' ? 'Sync failing' : 'Sync behind'); await shot(`fixture-sync-${kind}`);
+      await banner.getByRole('button', { name: 'Sync now' }).click(); await expect.poll(() => fx.posts.filter(u => u.includes('manual=1')).length).toBeGreaterThan(0);
+      await p.unrouteAll({ behavior: 'wait' });
+    });
+    await feature('client errors are reported to /api/errors, scrubbed of addresses, without the route query', async () => {
+      const bodies = []; await p.route('**/api/errors', async route => { try { bodies.push(route.request().postDataJSON()); await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); } catch { /* page closed */ } });
+      expectedFault = true; faultUntil = Date.now() + 8000; await home();
+      await p.evaluate(() => { setTimeout(() => { throw new Error('matrix probe for someone@example.com'); }, 0); }); await expect.poll(() => bodies.length, { timeout: 8000 }).toBeGreaterThan(0);
+      expectedFault = false; await p.unroute('**/api/errors'); if (bodies[0].route !== '/') throw new Error('route ' + bodies[0].route); return { posted: bodies.length, route: bodies[0].route };
+    });
+    await email(); await expect(p.locator('#digest-title')).toBeVisible(); await expect(p.locator('.gg-digest-state')).toContainText('Sending is off', { timeout: 30000 });
+    await feature('email page: sync detail and the digest preview, sending OFF', async () => {
+      const t = await p.locator('#digest-title').locator('xpath=ancestor::section').innerText();
+      if (!/Sending is off/.test(t) || !/Mondays 9:00 AM ET/.test(t) || !/Top creators this week/.test(t)) throw new Error(t.slice(0, 300));
+      await p.locator('#sync-title').scrollIntoViewIfNeeded(); await shot('email-sync-detail'); await p.locator('#digest-title').scrollIntoViewIfNeeded(); await shot('email-digest-preview'); return t.length;
+    });
+    await feature('no test data in the client view', async () => {
+      const bad = []; for (const path of ['/', '/pipeline', '/email']) { await p.goto(origin + path); await p.waitForTimeout(2500); const text = await p.locator('body').innerText(); const hit = text.match(/EXAMPLE|example-|test-|\bQA\b|fixture|audit-/i); if (hit) bad.push(path + ': ' + hit[0]); }
+      if (bad.length) throw new Error(bad.join('; ')); return 'clean';
+    });
     await feature('relative times show the exact time on hover or long-press', async () => {
       const t = p.locator('.gg-reltime').first(); await expect(t).toBeVisible();
       if (cfg.touch) { await t.dispatchEvent('pointerdown', { pointerType: 'touch', bubbles: true }); await p.waitForTimeout(650); } else await t.hover();

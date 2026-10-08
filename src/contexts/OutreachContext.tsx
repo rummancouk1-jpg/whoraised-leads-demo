@@ -22,6 +22,7 @@ function useWorkspace(initialSummary: LeadSummary | null) {
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState("Loading shared workspace…");
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [clicksAt, setClicksAt] = useState<number | null>(null);
   const [useSuggested, setUseSuggested] = useState(false);
   const pending = useRef<Record<string, Patch>>({});
   const saving = useRef(false);
@@ -36,6 +37,7 @@ function useWorkspace(initialSummary: LeadSummary | null) {
     const requestedRevision = revision.current;
     try {
       const result = await request("/api/leads", { signal: requests.current?.signal });
+      setClicksAt(Date.now());
       setClicks(old => JSON.stringify(old) === JSON.stringify(result.clicks) ? old : result.clicks);
       if (requestedRevision === revision.current && !saving.current && !Object.keys(pending.current).length) { setLeads(old => JSON.stringify(old) === JSON.stringify(result.leads) ? old : result.leads); setError(""); setSaveStatus("All edits saved to the shared workspace."); setSavedAt(Date.now()); }
     } catch(e) { if (!requests.current?.signal.aborted) setError((e as Error).message); }
@@ -108,7 +110,7 @@ function useWorkspace(initialSummary: LeadSummary | null) {
     undoMove(entry);
   }, [undoMove, toast]);
   return {
-    leads, clicks, loading, error, summary, saveStatus, savedAt, retrySave: flush, refresh, suggestion, useSuggested, setUseSuggested,
+    leads, clicks, clicksAt, loading, error, summary, saveStatus, savedAt, retrySave: flush, refresh, suggestion, useSuggested, setUseSuggested,
     weights: useSuggested && suggestion ? suggestion.weights : DEFAULT_WEIGHTS,
     update, moveStage, undoLast,
     importLeads: async (incoming: Lead[], replace: boolean, oneTime = false) => {

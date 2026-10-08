@@ -6,6 +6,7 @@ import { contactType, fitScore, generateDraft, isExample, leadGroup } from "@/li
 import { STAGES, type Lead, type Stage } from "@/types/outreach";
 import { RelTime } from "@/components/ui/RelTime";
 import { Modal } from "./Modal";
+import { LeadTimeline } from "./LeadTimeline";
 
 export function LeadDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const { update, moveStage, weights, clicks, saveStatus, error, retrySave } = useOutreach();
@@ -22,6 +23,7 @@ export function LeadDrawer({ lead, onClose }: { lead: Lead; onClose: () => void 
       <span className="gg-muted">Last touch: {lead.last_touch ? <RelTime value={lead.last_touch} /> : "none yet"}</span>
     </div>
     {isExample(lead) && <p className="gg-preview">EXAMPLE — excluded from conversion analytics.</p>}
+    <LeadTimeline slug={lead.tracked_slug} />
     <section className="gg-drawer-section"><h3>Pipeline edits</h3><p className="gg-muted" role="status">{saveStatus}</p>{error && <p className="gg-error" role="alert">{error} <button onClick={() => void retrySave()}>Retry saving</button></p>}<div className="gg-form-grid">
       <label className="gg-field">Stage<select aria-label="Stage" value={lead.stage} onChange={e => moveStage(lead.tracked_slug, e.target.value as Stage)}>{STAGES.map(s => <option key={s}>{s}</option>)}</select></label>
       <label className="gg-field">Signups · manual<input aria-label="Signups" type="number" inputMode="numeric" min="0" step="1" value={lead.signups} onChange={e => { const n = Number(e.target.value); if (e.target.value && Number.isSafeInteger(n) && n >= 0) update(lead.tracked_slug, { signups: n }); }} /></label>

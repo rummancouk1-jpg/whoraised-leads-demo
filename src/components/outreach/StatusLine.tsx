@@ -3,6 +3,7 @@
 import { useOutreach } from "@/contexts/OutreachContext";
 import { useEmail } from "@/contexts/EmailContext";
 import { buildStatusLine } from "@/lib/status-line";
+import { SyncPill } from "@/components/shell/SyncBanner";
 import { RelTime } from "@/components/ui/RelTime";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -18,6 +19,7 @@ export function StatusLine({ compact = false }: { compact?: boolean }) {
   return <section className={`gg-hero ${compact ? "gg-hero-compact" : ""}`} aria-label="Campaign status" aria-busy={line.text === null}>
     <p className="gg-hero-kicker"><span className={`gg-dot gg-dot-${line.tone}`} aria-hidden="true" />Campaign status
       {snapshot && <span className="gg-hero-fresh"> · <RelTime value={snapshot.fetchedAt} prefix={isLive ? "updated " : "saved snapshot from "} /></span>}
+      <span className="gg-hero-fresh"> · <SyncPill /></span>
     </p>
     <Heading className="gg-hero-line" id={compact ? undefined : "page-title"}>
       {!compact && <span className="gg-sr-only">GG Outreach. </span>}
