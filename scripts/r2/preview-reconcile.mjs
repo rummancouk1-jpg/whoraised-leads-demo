@@ -18,6 +18,8 @@ out.watch = watch.json;
 const rec = bearer(token, '/api/ohq/reconcile?sync=1'); out.reconcile = rec.json;
 add('/api/ohq/reconcile?sync=1 ran the real sync against live Instantly', rec.status === 200 && rec.json?.sync_run?.ok === true, { status: rec.status, sync_run: rec.json?.sync_run, error: rec.json?.error });
 for (const c of rec.json?.checks ?? []) add('source vs app: ' + c.label, c.ok, { provider: c.provider, app: c.app });
+const shape = rec.json?.shape; out.shape = shape;
+for (const k of ['leads', 'emails']) { const x = shape?.[k]; if (!x) continue; if (x.rows === 0) { out.checks.push({ label: `provider ${k} row shape`, status: 'UNVERIFIED', detail: 'the workspace has no ' + k + ' yet' }); console.log('UNVERIFIED provider ' + k + ' row shape: no rows in the workspace'); } else add(`provider ${k} rows carry every field the mapper reads (${x.rows} sampled)`, x.missing.length === 0, x); }
 const after = bearer(token, '/api/ohq/watch'); add('after the sync: watch reports a healthy sync and no alerts', after.json?.checks?.instantly_sync?.state === 'ok' && after.json.alerts.length === 0, { sync: after.json?.checks?.instantly_sync, alerts: after.json?.alerts });
 fs.writeFileSync('evidence/r2/preview-reconcile.json', JSON.stringify(out, null, 2));
 process.exit(out.checks.some(c => c.status === 'FAIL') ? 1 : 0);

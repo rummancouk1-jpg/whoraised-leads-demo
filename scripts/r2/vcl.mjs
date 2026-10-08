@@ -20,3 +20,8 @@ export function req(p, { method = 'GET', headers = {}, body } = {}) {
 }
 /** Bearer-authenticated request (OHQ machine endpoints). The token is supplied by the caller and never printed. */
 export const bearer = (token, p, opts = {}) => req(p, { ...opts, headers: { Authorization: `Bearer ${token}`, ...(opts.headers || {}) } });
+/** Server-side time to last byte in ms (curl's own clock, excluding the CLI start-up), for a bearer GET. */
+export function timed(token, p) {
+  const raw = execFileSync(process.execPath, [VC, 'curl', p, '--deployment', previewUrl, '--', '-s', '-o', process.platform === 'win32' ? 'NUL' : '/dev/null', '-w', '%{http_code} %{time_total}', '-H', `Authorization: Bearer ${token}`], { encoding: 'utf8', env, maxBuffer: 1 << 20 });
+  const [code, t] = raw.trim().split(/\s+/).slice(-2); return { status: Number(code), ms: Math.round(Number(t) * 1000) };
+}
