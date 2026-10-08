@@ -133,3 +133,16 @@ export async function fetchCampaignActivity(campaignId: string) {
   }
   return { leads, emails };
 }
+
+/**
+ * Checked on every sync, before any campaign exists: the per-lead data needs `leads:read` and `emails:read` on top of the
+ * account and campaign scopes the Email page uses. Without this a missing scope would only show up on launch day.
+ * (leads/list is a POST only because its filters are complex; it reads and changes nothing.)
+ */
+export async function assertLeadScopes() {
+  const failed: string[] = [];
+  const attempt = async (scope: string, work: () => Promise<unknown>) => { try { await work(); } catch (e) { if (/HTTP (401|403)/.test(String((e as Error).message))) failed.push(scope); else throw e; } };
+  await attempt("leads:read", () => api("leads/list", new URLSearchParams(), { limit: 1 }));
+  await attempt("emails:read", () => api("emails", new URLSearchParams({ limit: "1" })));
+  if (failed.length) throw new Error(`Instantly key is missing the ${failed.join(" and ")} scope${failed.length > 1 ? "s" : ""}. Add ${failed.length > 1 ? "them" : "it"} to the API key so per-lead activity can sync.`);
+}

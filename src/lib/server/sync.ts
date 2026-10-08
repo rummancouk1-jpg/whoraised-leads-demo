@@ -1,6 +1,6 @@
 import "server-only";
 import { database, initializeDatabase } from "./db";
-import { fetchCampaignActivity, selectCampaignId } from "./instantly";
+import { assertLeadScopes, fetchCampaignActivity, selectCampaignId } from "./instantly";
 import { getLeads } from "./leads";
 import { recordError } from "./errors";
 import { mapInstantly } from "@/lib/instantly-map";
@@ -27,6 +27,7 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
   const id = run[0].id;
   try {
     if (!process.env.INSTANTLY_API_KEY) throw new Error("Instantly is not connected. Add INSTANTLY_API_KEY to the server environment.");
+    await assertLeadScopes();
     const campaign = await selectCampaignId();
     const leads = await getLeads();
     let counts: Record<string, number | string> = { campaign: campaign.id ? "found" : campaign.message || "none", matched: 0, sent: 0, opened: 0, replied: 0, bounced: 0 };
