@@ -85,14 +85,16 @@ test("Instantly mapping: counts, bounce, reply time and send events; unknown ema
   expect(mapInstantly(leads, [], []).stats).toEqual([]);
 });
 
-test("digest: next send is Monday 9am New York in both DST regimes; the window matches exactly one cron hour", () => {
+test("digest: next send is Monday 9am New York in both DST regimes; the send window is Monday morning", () => {
   expect(nextMondayNineET(new Date("2026-10-08T12:00:00Z"))).toBe("2026-10-12T13:00:00.000Z");
   expect(nextMondayNineET(new Date("2026-11-02T14:30:00Z"))).toBe("2026-11-09T14:00:00.000Z");
-  expect(isSendWindow(new Date("2026-10-12T13:00:00Z"))).toBe(true);
-  expect(isSendWindow(new Date("2026-10-12T14:00:00Z"))).toBe(false);
-  expect(isSendWindow(new Date("2026-11-09T14:00:00Z"))).toBe(true);
-  expect(isSendWindow(new Date("2026-11-09T13:00:00Z"))).toBe(false);
-  expect(isSendWindow(new Date("2026-10-13T13:00:00Z"))).toBe(false);
+  // Monday 09:00-11:59 New York counts, in both DST regimes; the evening, other weekdays and 08:xx do not.
+  expect(isSendWindow(new Date("2026-10-12T13:00:00Z"))).toBe(true);   // 09:00 EDT
+  expect(isSendWindow(new Date("2026-10-12T14:59:00Z"))).toBe(true);   // 10:59 EDT
+  expect(isSendWindow(new Date("2026-10-12T16:00:00Z"))).toBe(false);  // 12:00 EDT
+  expect(isSendWindow(new Date("2026-11-09T14:00:00Z"))).toBe(true);   // 09:00 EST
+  expect(isSendWindow(new Date("2026-11-09T13:00:00Z"))).toBe(false);  // 08:00 EST
+  expect(isSendWindow(new Date("2026-10-13T13:00:00Z"))).toBe(false);  // Tuesday
 });
 
 test("digest render escapes content and states unknowns honestly", () => {

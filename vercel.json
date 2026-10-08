@@ -6,11 +6,11 @@
     },
     {
       "path": "/api/cron/instantly-sync",
-      "schedule": "*/15 * * * *"
+      "schedule": "20 0 * * *"
     },
     {
       "path": "/api/cron/digest",
-      "schedule": "0 13,14 * * 1"
+      "schedule": "0 14 * * 1"
     }
   ],
   "headers": [

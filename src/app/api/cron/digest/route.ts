@@ -4,11 +4,11 @@ import { isSendWindow } from "@/lib/digest";
 import { recordError } from "@/lib/server/errors";
 
 export const maxDuration = 60;
-/** Cron fires at 13:00 and 14:00 UTC on Mondays; only the run that lands on 09:00 in New York does anything. */
+/** Any trigger outside Monday 09:00-11:59 in New York does nothing; inside it, the sender enforces once per week. */
 export async function GET(request: Request) {
   const key = process.env.CRON_SECRET;
   if (!key || !equal(request.headers.get("authorization") ?? "", `Bearer ${key}`)) return privateJson({ error: "Unauthorized." }, 401);
-  if (!isSendWindow()) return privateJson({ sent: false, reason: "Not 9am Monday in New York." });
+  if (!isSendWindow()) return privateJson({ sent: false, reason: "Not Monday morning in New York." });
   try { return privateJson(await sendDigest()); }
   catch (e) {
     await recordError({ surface: "server", name: "DigestFailed", message: (e as Error).message, route: "/api/cron/digest" });

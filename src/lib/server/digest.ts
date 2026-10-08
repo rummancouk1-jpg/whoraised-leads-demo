@@ -70,6 +70,8 @@ export async function sendDigest(): Promise<{ sent: boolean; reason?: string }> 
     return { sent: false, reason: "Sending is off." };
   }
   if (!state.ready) return { sent: false, reason: `Missing ${state.missing.join(", ")}.` };
+  // Once per week however many triggers land in the window (Vercel's cron, the GitHub schedule, a retry).
+  if (state.lastSentAt && Date.now() - Date.parse(state.lastSentAt) < 5 * DAY) return { sent: false, reason: "Already sent this week." };
   const model = await buildDigest();
   const { html, text } = renderDigest(model);
   const response = await fetch("https://api.resend.com/emails", {

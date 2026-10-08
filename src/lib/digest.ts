@@ -26,10 +26,14 @@ export function nextMondayNineET(now = new Date()): string {
   }
   throw new Error("No Monday found");
 }
-/** True when `now` falls in the Monday 09:00 hour in New York. The cron fires at 13:00 and 14:00 UTC; only one matches. */
+/**
+ * True on Monday between 09:00 and 11:59 in New York. Triggers (Vercel's cron on the Hobby plan, which fires somewhere
+ * in its hour, and the GitHub schedule) can land late, so the window is a morning and "once per week" is enforced by the
+ * sender, not by hitting an exact minute.
+ */
 export function isSendWindow(now = new Date()): boolean {
   const p = nyParts(now);
-  return p.weekday === "Mon" && p.hour === "09";
+  return p.weekday === "Mon" && ["09", "10", "11"].includes(p.hour);
 }
 
 export function renderDigest(m: DigestModel): { html: string; text: string } {

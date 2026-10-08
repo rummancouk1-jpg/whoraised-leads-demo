@@ -1,0 +1,24 @@
+# Free-plan scheduler. Vercel's Hobby plan only allows daily crons with a loose firing time, so the 15-minute Instantly
+# sync and the Monday digest are triggered from here. GitHub only runs `schedule` workflows from the default branch,
+# so this does nothing until the branch is merged. Repository secrets required: APP_URL (e.g. https://gg-tourney-hub.vercel.app)
+# and CRON_SECRET (the same value as the Vercel CRON_SECRET).
+name: outreach-cron
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # Instantly sync
+    - cron: "5 13,14,15 * * 1" # Monday digest: 09:05-11:05 New York in either DST regime; the app sends once and only in the window
+  workflow_dispatch:
+permissions: {}
+jobs:
+  sync:
+    if: github.event.schedule != '5 13,14,15 * * 1'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Instantly
+        run: curl --fail-with-body --silent --show-error --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/cron/instantly-sync"
+  digest:
+    if: github.event.schedule == '5 13,14,15 * * 1'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Weekly digest (sends only when enabled on the server)
+        run: curl --fail-with-body --silent --show-error --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/cron/digest"
