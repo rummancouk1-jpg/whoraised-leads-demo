@@ -26,7 +26,8 @@ export async function ohqWatch() {
   if (!db.ok) alerts.push({ severity: "critical", reason: "Database unreachable", since: db.checked_at });
   if (sync?.state === "failing" && sync.consecutiveFailures >= 2) alerts.push({ severity: "warning", reason: `Instantly sync failing (${sync.consecutiveFailures} runs in a row)`, since: sync.failedSince ?? db.checked_at });
   if (sync?.state === "stale") alerts.push({ severity: "warning", reason: `Instantly sync older than ${STALE_AFTER_MIN} minutes`, since: sync.lastOkAt ?? db.checked_at });
-  const fresh = errors.filter(e => e.first_seen > new Date(Date.now() - 3_600_000).toISOString());
+  // The canary proves capture works; it is counted in errors_24h but never raises an alert.
+  const fresh = errors.filter(e => e.name !== "MonitoringCanary" && e.first_seen > new Date(Date.now() - 3_600_000).toISOString());
   if (fresh.length) alerts.push({ severity: "warning", reason: `${fresh.length} new error type${fresh.length === 1 ? "" : "s"} in the last hour`, since: fresh[fresh.length - 1].first_seen });
   return {
     contract: "1",
