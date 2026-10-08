@@ -89,3 +89,13 @@ Same data, same routes, same auth and CSP (every inline script carries the reque
 ## 6. Deliberately not adopted
 
 Left sidebar navigation (Linear/Attio) — three destinations do not justify it, and it costs phone width. Multi-user presence and comments — no data model for it. Shared (team) saved views — would need a new table; views are per-viewer and local. Web push — nothing in scope sends notifications.
+
+## 7. What changed between the plan and the build
+
+* **The status sentence is server-rendered.** Waiting for two client fetches put mobile LCP at 3.6 s and CLS at 0.245. The layout now computes the lead counts and reads the newest saved Instantly snapshot, so the sentence is in the first HTML; the client then replaces it with live values. The list, board and click tile keep their skeletons.
+* **No left rail, no shared views, no comments** (section 6) held. Saved views are per viewer and cleared on logout.
+* **Selects are custom-drawn** (appearance reset with an inline chevron) because WebKit's native control looked heavy on the dark board.
+* **Toast Undo is mouse/touch/`⌘Z`.** While a drawer is open the page behind it is inert; the toast region is exempt so Undo stays reachable, and the drawer's own Stage select is the keyboard path back.
+* **Optimistic saves invalidate in-flight reads.** A poll that began before a save landed could overwrite the screen with the old value; every completed save now bumps the revision so such a response is discarded.
+* **The service worker registers only inside the signed-in workspace**, so logging out leaves nothing behind and the login page never recreates a cache.
+* **Copy follows the audit's banned-word list** ("unavailable" never appears; the status line says "couldn't read inbox status").
