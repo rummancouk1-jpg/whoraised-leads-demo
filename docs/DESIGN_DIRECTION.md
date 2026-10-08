@@ -99,3 +99,17 @@ Left sidebar navigation (Linear/Attio) — three destinations do not justify it,
 * **Optimistic saves invalidate in-flight reads.** A poll that began before a save landed could overwrite the screen with the old value; every completed save now bumps the revision so such a response is discarded.
 * **The service worker registers only inside the signed-in workspace**, so logging out leaves nothing behind and the login page never recreates a cache.
 * **Copy follows the audit's banned-word list** ("unavailable" never appears; the status line says "couldn't read inbox status").
+
+## R2 — make it run the outreach (8 October 2026)
+
+Targets: **Attio and Linear's inbox/triage** (the work comes to you) and **Stripe's honest data freshness**. Same tokens, same shell, same routes plus the ones below; nothing here relaxes the client-readiness rules in section 5.
+
+| Reference does | We adopt | Lands in |
+|---|---|---|
+| Linear Inbox: one list of things that need *you*, newest pain first, one tap opens the record | **Needs action today** on Home, directly under the status sentence: replies awaiting an answer, then bounces to fix, then follow-ups due. Each row is a single 52 px button that opens the lead drawer. Empty state is a sentence, never a zero grid | `NeedsAction.tsx`, `lib/activity.ts` (`buildQueue`) |
+| Attio record activity: the record shows what happened to it, in order | Drawer **Activity** timeline: Sent → Opened → Replied → Clicked → Signed up. Reached steps show detail and a relative time; steps ahead are muted and say what will fill them | `LeadTimeline.tsx` |
+| Stripe: every figure says how fresh it is; a failed refresh is loud, not silent | `Updated 3 min ago` on every tile (reserved height, so it never shifts the layout); a sync pill in the status line; a `role=alert` banner with the last good time, the provider's reason and **Sync now** whenever the last sync failed or is older than 40 minutes | `SyncBanner.tsx`, `StatusStrip.tsx`, `SyncDetail.tsx` |
+| Stripe: "—" plus a reason, never an invented zero | Attribution shows **"Attribution starts when the signup link is live"** until a signup is reported or `PREREG_LIVE_AT` passes, then clicks → signups per creator | `Attribution.tsx` |
+| Linear/Attio digests | Weekly digest: one status sentence, six numbers, top creators, replies, what needs action. Previewed in-app (Email → Weekly digest) from the same model that renders the email; sending is off until `DIGEST_SEND_ENABLED=true` | `DigestPreview.tsx`, `lib/digest.ts` |
+
+Rules for the queue: a **reply** waits until you log a touch on or after the day it arrived or Instantly shows you replied; auto-replies never count. A **bounce** drops out when the contact changes or the lead is closed. A **follow-up** is due 5 days after the last send (or last touch) for a *Contacted* lead with no reply, including DM/form leads Instantly never sees. Joined, Declined and example leads never appear.

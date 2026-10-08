@@ -12,5 +12,7 @@ globalThis.fetch = async function (input, init) {
   if (path === "accounts") return json({ items: source.accounts });
   if (path === "accounts/analytics/daily") return json(source.daily);
   if (path === "campaigns") return json({ items: [] });
+  // R2: the per-lead sync reads these; the workspace has no tournament campaign yet, so both are empty lists.
+  if (path === "leads/list" || path === "emails") return json({ items: [] });
   return json({ error: "not stubbed" }, 404);
 };

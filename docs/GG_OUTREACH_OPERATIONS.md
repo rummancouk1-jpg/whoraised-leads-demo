@@ -57,3 +57,25 @@ node scripts/render-deployed-evidence.mjs
 ```
 
 The deployed gate logs in via the real UI, imports unique EXAMPLE QA records, checks two independent Chromium processes, reload persistence, migration deduplication, authorization, downloads, clipboard and responsive layouts. Only those unique QA rows are removed afterward. It never mocks Instantly or replaces real leads. Gate results and screenshots are in `evidence/deployed`; no auth traces/passwords are retained. The prior `GG_OUTREACH_REPORT.md` describes the earlier browser-local implementation; the deployment report supersedes its persistence and localhost verification claims.
+
+## Outreach layer (R2, 8 October 2026)
+
+**Per-lead Instantly sync.** `runInstantlySync` reads the selected tournament campaign's leads (`POST /leads/list`, a read despite the verb) and emails (`GET /emails`) and stores per-lead sent / opened / replied / clicked / bounced counters, last-contact times and timeline events in `gg_lead_stats` and `gg_lead_events`, matching Instantly rows to leads by their email contact. Bodies and subjects are never stored. Every attempt, good or bad, is a row in `gg_sync_runs`; the on-screen sync pill, the stale warning and the OHQ feed are all computed from those rows. The Instantly key needs `leads:read` and `emails:read` in addition to the account and campaign scopes; the sync checks this on every run, before a campaign exists, and says which scope is missing.
+
+**Schedule.** The app syncs when (a) the scheduler calls `/api/cron/instantly-sync`, (b) an open workspace sees the last good sync is older than 15 minutes, or (c) someone presses *Sync now*. Vercel's Hobby plan only allows daily crons with a loose firing time (it rejected a `*/15` schedule at deploy), so `vercel.json` keeps a daily floor and `.github/workflows/outreach-cron.yml` provides the 15-minute tick and the Monday digest trigger. GitHub runs `schedule` workflows only from the default branch, so nothing fires until this branch is merged and the repository secrets `APP_URL` and `CRON_SECRET` exist. On the Pro plan, replace the workflow with `*/15 * * * *` and `0 14 * * 1` crons.
+
+**Needs action today.** Replies awaiting an answer, bounces to fix and follow-ups due (5 days after the last send or touch, `FOLLOW_UP_DAYS` in `lib/activity.ts`). Example and closed leads never appear.
+
+**Attribution.** `POST /api/attribution/signup` with `Authorization: Bearer $SIGNUP_WEBHOOK_SECRET` and `{"id":"<unique signup id>","slug":"<utm_content>","at":"<ISO>"}`, sent by the preregistration site (idempotent on `id`, unknown slugs ignored, no personal data accepted). Until a signup is reported or `PREREG_LIVE_AT` passes, the dashboard shows "Attribution starts when the signup link is live".
+
+**Weekly digest.** Previewed under Email → Weekly digest from the same model that renders the message (`/api/digest?format=html` is the exact HTML). Sending needs all of `DIGEST_SEND_ENABLED=true`, `RESEND_API_KEY`, `DIGEST_FROM`, `DIGEST_RECIPIENTS`; with any missing it does nothing and records a skip. It sends only on Monday 09:00–11:59 New York and at most once per five days, so a late or duplicate trigger is harmless.
+
+**Error monitoring (OHQ Watch contract).** Server errors (`instrumentation.ts` → `onRequestError`), failed syncs and signed-in browser errors (`ErrorReporter`, `error.tsx`, `global-error.tsx` → `/api/errors`) are fingerprinted and counted in `gg_errors` after scrubbing addresses, tokens, long numbers and query strings. OHQ polls `GET /api/ohq/health` and `GET /api/ohq/watch` with `Authorization: Bearer $OHQ_TOKEN`. To receive the alerts, add to OperatorHQ `watch.apps.json` (and give the same token to OHQ under `GG_OHQ_TOKEN`) and a `gg` profile in `lib/watch/profiles.ts` requiring `["release","deploy_truth","health","errors","alerts"]`:
+
+```json
+{ "name": "GG Outreach", "client": "GG", "url": "https://gg-tourney-hub.vercel.app", "tokenEnv": "GG_OHQ_TOKEN", "criticality": "standard", "profile": "gg" }
+```
+
+`GET /api/ohq/reconcile?sync=1` (same bearer) runs the real sync and compares the raw Instantly read with what the app serves, field by field; `GET /api/ohq/canary` throws on purpose to prove capture end to end. Neither is polled.
+
+Local runs are labelled apart so they cannot make a deployed app look healthy or noisy: sync rows from a machine without `VERCEL` are stored as `instantly-local`, and errors are not written to the shared monitor unless `GG_MONITOR_LOCAL=1`.

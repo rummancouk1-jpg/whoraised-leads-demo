@@ -177,10 +177,11 @@ for (const scheme of ['light', 'dark']) for (const motion of ['normal', 'reduce'
       await p.unrouteAll({ behavior: 'wait' });
     });
     await feature('client errors are reported to /api/errors, scrubbed of addresses, without the route query', async () => {
-      const bodies = []; await p.route('**/api/errors', async route => { try { bodies.push(route.request().postDataJSON()); await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); } catch { /* page closed */ } });
+      // Observe the request instead of routing it: keepalive fetches are not reliably interceptable in WebKit. The local server's monitor does not write to the shared database.
+      const bodies = []; const onReq = r => { if (r.url().endsWith('/api/errors')) { try { bodies.push(r.postDataJSON()); } catch { bodies.push({}); } } }; p.on('request', onReq);
       expectedFault = true; faultUntil = Date.now() + 8000; await home();
       await p.evaluate(() => { setTimeout(() => { throw new Error('matrix probe for someone@example.com'); }, 0); }); await expect.poll(() => bodies.length, { timeout: 8000 }).toBeGreaterThan(0);
-      expectedFault = false; await p.unroute('**/api/errors'); if (bodies[0].route !== '/') throw new Error('route ' + bodies[0].route); return { posted: bodies.length, route: bodies[0].route };
+      expectedFault = false; p.off('request', onReq); if (bodies[0].route !== '/') throw new Error('route ' + bodies[0].route); return { posted: bodies.length, route: bodies[0].route };
     });
     await email(); await expect(p.locator('#digest-title')).toBeVisible(); await expect(p.locator('.gg-digest-state')).toContainText('Sending is off', { timeout: 30000 });
     await feature('email page: sync detail and the digest preview, sending OFF', async () => {

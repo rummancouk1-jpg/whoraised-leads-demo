@@ -35,7 +35,7 @@ export function NeedsAction() {
         <ul className="gg-needs-list">{shown.map(q => <li key={q.slug + q.kind}>
           <button className="gg-needs-item" onClick={() => openLead(q.slug)} aria-label={`${KIND[q.kind].label}: ${q.name}. ${q.reason}. Open lead`}>
             <span className={`gg-needs-kind gg-needs-${KIND[q.kind].tone}`}><span className="gg-dot" aria-hidden="true" />{KIND[q.kind].label}</span>
-            <span className="gg-needs-main"><strong>{q.name}</strong><small>{q.reason}{q.kind !== "followup" && <> · <RelTime value={q.since} /></>}</small></span>
+            <span className="gg-needs-main"><strong>{q.name}</strong><small>{q.reason}{q.kind !== "followup" && <> · <RelTime plain value={q.since} /></>}</small></span>
             <ArrowIcon />
           </button>
         </li>)}</ul>

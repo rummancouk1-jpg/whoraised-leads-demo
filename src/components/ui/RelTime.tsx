@@ -18,7 +18,7 @@ export function useNow() { return useSyncExternalStore(subscribe, () => tick, ()
  * "4 minutes ago" with the exact time on hover, keyboard focus, tap, or a long press on touch screens.
  * The full time is also in the accessible name, so nothing depends on pointer hover.
  */
-export function RelTime({ value, prefix = "", fallback = "—" }: { value: TimeInput | null | undefined; prefix?: string; fallback?: string }) {
+export function RelTime({ value, prefix = "", fallback = "—", plain = false }: { value: TimeInput | null | undefined; prefix?: string; fallback?: string; plain?: boolean }) {
   const now = useNow();
   const [open, setOpen] = useState(false);
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,6 +28,8 @@ export function RelTime({ value, prefix = "", fallback = "—" }: { value: TimeI
   if (!parsed) return <span>{fallback}</span>;
   const exact = exactTime(value);
   const text = now === 0 ? "recently" : relativeTime(value, now);
+  // Inside a button or link the time must not be interactive (a tap on it would swallow the click and nest focusable controls).
+  if (plain) return <time dateTime={parsed.dateOnly ? String(value) : parsed.date.toISOString()}>{prefix}{text}<span className="gg-sr-only">, {exact}</span></time>;
   const show = (autoHide = false) => { setOpen(true); if (hide.current) clearTimeout(hide.current); if (autoHide) hide.current = setTimeout(() => setOpen(false), 3500); };
   return <time className="gg-reltime" dateTime={parsed.dateOnly ? String(value) : parsed.date.toISOString()} tabIndex={0} data-open={open || undefined}
     onPointerEnter={e => { if (e.pointerType === "mouse") show(); }}
