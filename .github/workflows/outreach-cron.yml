@@ -15,10 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Sync Instantly
-        run: curl --fail-with-body --silent --show-error --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/cron/instantly-sync"
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/cron/instantly-sync"
   digest:
     if: github.event.schedule == '5 13,14,15 * * 1'
     runs-on: ubuntu-latest
     steps:
       - name: Weekly digest (sends only when enabled on the server)
-        run: curl --fail-with-body --silent --show-error --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/cron/digest"
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/cron/digest"
