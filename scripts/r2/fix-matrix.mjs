@@ -2,7 +2,7 @@
 // Activity fixtures exercise otherwise empty R2 states; all writes are intercepted.
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import {chromium,webkit,expect} from '@playwright/test';
+import {chromium,webkit,expect as baseExpect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {login,logout,cookieParts,activityFixture,protectionHeaders} from '../design/lib.mjs';
 const origin=process.argv[2]||'http://localhost:3104',dir=process.env.EVIDENCE_ROOT||'evidence/r2-fix/matrix';
@@ -10,6 +10,8 @@ await fs.mkdir(dir+'/screenshots',{recursive:true});
 const leads=JSON.parse(await fs.readFile('evidence/r2-independent/leads.json','utf8'));
 const rows=[];const browsers=[['chrome',()=>chromium.launch({channel:'chrome'})],['edge',()=>chromium.launch({channel:'msedge'})],['webkit',()=>webkit.launch()]].filter(([engine])=>!process.env.MATRIX_ENGINE||engine===process.env.MATRIX_ENGINE);
 const selected=process.env.MATRIX_KEYS?.split(',');
+// Remote hydration and data reads can exceed the default five seconds on a contended machine.
+const expect=baseExpect.configure({timeout:20000});
 for(const [engine,launch] of browsers){
  let browser;try{browser=await launch();}catch(e){rows.push({engine,unavailable:e.message});continue;}
  for(const width of [390,820,1440])for(const motion of ['no-preference','reduce'])for(const theme of ['light','dark']){
@@ -27,6 +29,9 @@ for(const [engine,launch] of browsers){
   await context.route('**/api/digest',r=>digestFailed?r.fulfill({status:503,json:{error:'fixture unavailable'}}):r.continue());
   await context.route(/\/api\/leads(?:\/[^/?]+)?$/,r=>r.request().method()==='GET'?r.continue():r.abort('blockedbyclient'));
   const page=await context.newPage();page.setDefaultNavigationTimeout(60000);page.on('pageerror',e=>row.errors.push(e.message));
+  row.assetFailures=[];
+  page.on('requestfailed',request=>{if(request.url().includes('/_next/static/'))row.assetFailures.push({url:request.url(),error:request.failure()?.errorText});});
+  page.on('response',response=>{if(response.status()>=400&&response.url().includes('/_next/static/'))row.assetFailures.push({url:response.url(),status:response.status()});});
   async function check(label,fn){try{const detail=await fn();row.checks.push({label,pass:true,detail});}catch(e){row.checks.push({label,pass:false,error:e.message.slice(0,700)});}}
   async function axe(label){await check(label,async()=>{const r=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();assert.equal(r.violations.length,0,JSON.stringify(r.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))));return 0;});}
   async function capture(label,selector){const loc=page.locator(selector).first();await loc.scrollIntoViewIfNeeded();const file=`screenshots/${key}-fixture-${label}.png`;await loc.screenshot({path:dir+'/'+file});row.screenshots.push(file);}
@@ -75,7 +80,7 @@ for(const [engine,launch] of browsers){
    await page.goto(origin+'/pipeline',{waitUntil:'domcontentloaded'});await expect(page.locator('.gg-pipeline-card').first()).toBeVisible();await check('pipeline R2 warning and page overflow',async()=>{await expect(page.locator('.gg-sync-banner')).toBeVisible();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));return 'banner visible; no page overflow';});
    await axe('pipeline axe WCAG');
    if(motion==='reduce')await check('reduced motion',async()=>{assert(await page.locator('.gg-sync-banner').evaluate(el=>getComputedStyle(el).animationName==='none'&&parseFloat(getComputedStyle(el).transitionDuration)===0));return 'none';});
-  }catch(e){row.errors.push(e.message.slice(0,900));}
+  }catch(e){row.errors.push(e.message.slice(0,900));row.failurePage={url:page.url(),text:(await page.locator('body').innerText().catch(()=>'' )).slice(0,2500)};await page.screenshot({path:dir+'/screenshots/'+key+'-runtime-failure.png',fullPage:true}).catch(()=>{});}
   finally{await context.close();await logout(origin,cookie);await fs.writeFile(dir+'/matrix.json',JSON.stringify(rows,null,2));}
   console.log(key,row.checks.filter(c=>!c.pass).length+' failed checks',row.errors.length+' runtime errors');
  }

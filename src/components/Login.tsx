@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
-import { navigateSession } from "@/lib/session-navigation";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { clearClientState, navigateSession } from "@/lib/session-navigation";
 
 export function Login() {
+  // Finish cleanup in the new document even if browser shutdown interrupted it.
+  useEffect(() => { void clearClientState(); }, []);
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState("");
