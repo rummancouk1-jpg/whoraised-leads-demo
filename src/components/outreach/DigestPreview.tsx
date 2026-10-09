@@ -12,16 +12,17 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-US", { weekday: "
 export function DigestPreview() {
   const [payload, setPayload] = useState<Payload | null>(null);
   const [failed, setFailed] = useState(false);
+  const [attempt,setAttempt] = useState(0);
   useEffect(() => {
     const abort = new AbortController();
     fetch("/api/digest", { cache: "no-store", signal: abort.signal }).then(r => { if (!r.ok) throw new Error("failed"); return r.json(); }).then(setPayload).catch(() => { if (!abort.signal.aborted) setFailed(true); });
     return () => abort.abort();
-  }, []);
+  }, [attempt]);
   const m = payload?.model, s = payload?.state;
   return <section className="gg-lead-panel" aria-labelledby="digest-title">
     <div className="gg-list-heading"><h2 id="digest-title">Weekly digest</h2><span>Mondays 9:00 AM ET · David and Ian</span></div>
-    {failed ? <p className="gg-error" role="alert">The digest preview couldn&apos;t be built. Retry shortly.</p> : !m || !s ? <div aria-hidden="true"><Skeleton className="gg-sk-hero-rest" /><Skeleton className="gg-sk-hero-rest" /></div> : <>
-      <p className="gg-digest-state" role="status"><span className={`gg-dot ${s.enabled ? "gg-dot-ok" : "gg-dot-idle"}`} aria-hidden="true" /><strong>{s.enabled ? "Sending is on" : "Sending is off"}</strong> · {s.enabled ? `next send ${when(s.nextSendAt)}` : `nothing is sent until you enable it. Next scheduled slot: ${when(s.nextSendAt)}`}{s.enabled && !s.ready ? ` · missing ${s.missing.join(", ")}` : ""}</p>
+    {failed ? <div className="gg-error" role="alert"><p>The digest preview couldn&apos;t be built.</p><button className="gg-button gg-secondary" onClick={() => {setFailed(false);setPayload(null);setAttempt(n=>n+1);}}>Retry digest preview</button></div> : !m || !s ? <div aria-hidden="true"><Skeleton className="gg-sk-hero-rest" /><Skeleton className="gg-sk-hero-rest" /></div> : <>
+      <p className="gg-digest-state" role="status"><span className={`gg-dot ${s.enabled && s.ready ? "gg-dot-ok" : "gg-dot-idle"}`} aria-hidden="true" /><strong>{s.enabled ? "Sending is on" : "Sending is off"}</strong> · {s.enabled ? s.ready ? `next send ${when(s.nextSendAt)}` : "email delivery setup needs attention; no digest will be sent yet" : `nothing is sent until you enable it. Next scheduled slot: ${when(s.nextSendAt)}`}</p>
       <article className="gg-digest" aria-label="Digest preview">
         <p className="gg-digest-subject"><span className="gg-muted">Subject</span> {m.subject}</p>
         <p className="gg-digest-status">{m.status}</p>

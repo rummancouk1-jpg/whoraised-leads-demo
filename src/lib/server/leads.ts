@@ -6,9 +6,9 @@ import type { Lead } from "@/types/outreach";
 
 export async function getLeads(): Promise<Lead[]> {
   await initializeDatabase();
-  const rows = await database()`SELECT data FROM gg_leads ORDER BY slug`;
+  const rows = await database()`SELECT data,updated_at::text AS version FROM gg_leads ORDER BY slug`;
   return rows.map(row => {
-    const lead = { ...row.data } as Lead;
+    const lead = { ...row.data, version: row.version } as Lead;
     delete lead.source_url_live;
     return lead;
   }).filter(lead => !isExample(lead));
@@ -38,11 +38,13 @@ export async function importCsv(csv: string, replace: boolean, oneTime: boolean)
   }
   return getLeads();
 }
+export class EditConflict extends Error {}
 export async function patchLead(slug: string, patch: unknown) {
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) throw new Error("Invalid edit.");
-  const keys = Object.keys(patch);
+  const { expectedVersion, expectedStage, ...fields } = patch as Record<string, unknown>;
+  if (typeof expectedVersion !== "string" || !expectedVersion) throw new EditConflict("Refresh this lead before editing it.");
+  const keys = Object.keys(fields);
   if (!keys.length || keys.some(k => !["stage", "notes", "signups", "last_touch"].includes(k))) throw new Error("Invalid edit fields.");
-  const fields = patch as Record<string, unknown>;
   for (const key of keys) {
     if (key === "signups" ? typeof fields[key] !== "number" : typeof fields[key] !== "string") throw new Error("Invalid edit types.");
   }
@@ -51,7 +53,10 @@ export async function patchLead(slug: string, patch: unknown) {
   const rows = await sql`SELECT data FROM gg_leads WHERE slug=${slug}`;
   if (!rows.length) throw new Error("Lead no longer exists. Refresh the workspace.");
   // Reuse the strict CSV schema, then atomically merge only the submitted fields.
-  parseLeadsCsv(exportCsv([{ ...rows[0].data, ...patch }]));
-  const result = await sql`UPDATE gg_leads SET data=data || ${JSON.stringify(patch)}::jsonb, updated_at=now() WHERE slug=${slug} RETURNING data`;
-  return result[0]?.data;
+  parseLeadsCsv(exportCsv([{ ...rows[0].data, ...fields }]));
+  const result = await sql`UPDATE gg_leads SET data=data || ${JSON.stringify(fields)}::jsonb, updated_at=clock_timestamp()
+    WHERE slug=${slug} AND updated_at::text=${expectedVersion} AND (${typeof expectedStage === "string" ? expectedStage : null}::text IS NULL OR data->>'stage'=${typeof expectedStage === "string" ? expectedStage : null})
+    RETURNING data,updated_at::text AS version`;
+  if (!result.length) throw new EditConflict("Someone changed this lead. Refresh it before retrying your edit.");
+  return { ...result[0].data, version: result[0].version };
 }

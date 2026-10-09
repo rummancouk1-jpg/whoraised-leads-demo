@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Node CommonJS fixture server. */
 /* Test harness only (loaded with NODE_OPTIONS=--require by serve.mjs when INSTANTLY_STUB=1).
  * The local environment has no usable Instantly key, so answer api.instantly.ai/api/v2 from the raw capture saved by the
  * previous audit round. App code is untouched: it still maps provider fields exactly as in production. */

@@ -1,25 +1,33 @@
 import { equal, privateJson } from "@/lib/server/auth";
 import { database, initializeDatabase } from "@/lib/server/db";
 import { isTestClick } from "@/lib/click-tracking";
+import { verifyClickToken, verifyWebhook } from "@/lib/server/attribution-token";
+import { readBody, RequestTooLarge, takeBudget } from "@/lib/server/limits";
 export const dynamic = "force-dynamic";
-/**
- * The preregistration site reports each signup here with the creator slug it arrived through (utm_content).
- * Server-to-server: `Authorization: Bearer $SIGNUP_WEBHOOK_SECRET`, body {"id": "<unique signup id>", "slug": "...", "at": "<ISO time, optional>"}.
- * Idempotent on id. No name, email or other personal data is accepted or stored.
- */
+/** Signed server-to-server envelope; click token joins the actual creator-link visit. */
 export async function POST(request: Request) {
   const key = process.env.SIGNUP_WEBHOOK_SECRET;
-  if (!key) return privateJson({ error: "Attribution is not configured." }, 503);
-  if (!equal(request.headers.get("authorization") ?? "", `Bearer ${key}`)) return privateJson({ error: "Unauthorized." }, 401);
-  let body: { id?: unknown; slug?: unknown; at?: unknown };
-  try { const text = await request.text(); if (text.length > 2000) return privateJson({ error: "Too large." }, 413); body = JSON.parse(text); } catch { return privateJson({ error: "Invalid JSON." }, 400); }
-  const id = typeof body.id === "string" && /^[\w.:-]{1,100}$/.test(body.id) ? body.id : "";
-  const slug = typeof body.slug === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.slug) && body.slug.length <= 200 ? body.slug : "";
-  if (!id || !slug) return privateJson({ error: "Supply id and slug." }, 400);
-  const at = typeof body.at === "string" && Number.isFinite(Date.parse(body.at)) && Date.parse(body.at) <= Date.now() + 60_000 ? new Date(body.at).toISOString() : new Date().toISOString();
-  const test = isTestClick(slug, undefined, request.headers.get("user-agent") ?? "", request.headers.get("x-gg-test-click") ?? "");
-  await initializeDatabase();
-  // Unknown slugs are never attributed, mirroring /go.
-  const rows = await database()`INSERT INTO gg_signups(id,slug,signed_up_at,is_test) SELECT ${id}, slug, ${at}::timestamptz, (${test} OR data->>'name' ~* '\\mEXAMPLE\\M') FROM gg_leads WHERE slug=${slug} ON CONFLICT (id) DO NOTHING RETURNING id`;
-  return privateJson({ ok: true, recorded: rows.length > 0 });
+  if (!key) return privateJson({ error: "Attribution is not configured." },503);
+  if (!equal(request.headers.get("authorization")??"",`Bearer ${key}`)) return privateJson({error:"Unauthorized."},401);
+  try {
+    const text = await readBody(request,2000);
+    if (!verifyWebhook(request,text,key)) return privateJson({error:"Invalid signature or expired delivery."},401);
+    if (!await takeBudget("signup-webhook",120,60)) return privateJson({error:"Retry shortly."},429);
+    const parsed: unknown = JSON.parse(text);
+    if (!parsed || typeof parsed!=="object" || Array.isArray(parsed)) return privateJson({error:"Invalid JSON object."},400);
+    const body = parsed as Record<string,unknown>;
+    const id = typeof body.id==="string" && /^[\w.:-]{1,100}$/.test(body.id) ? body.id : "";
+    const token = typeof body.click_token==="string" ? body.click_token : "";
+    const claim = verifyClickToken(token);
+    const at = typeof body.at==="string" && /^\d{4}-\d{2}-\d{2}T/.test(body.at) ? Date.parse(body.at) : NaN;
+    if (!id || !claim || body.slug!==claim.slug || !Number.isFinite(at) || at>Date.now()+60000 || at<claim.issued*1000) return privateJson({error:"Supply a valid signup identity, creator click and signup time."},400);
+    const test = claim.test || isTestClick(claim.slug,undefined,request.headers.get("user-agent")??"",request.headers.get("x-gg-test-click")??"");
+    const nonce = request.headers.get("x-gg-nonce")!;
+    await initializeDatabase();
+    const rows = await database()`INSERT INTO gg_signups(id,slug,signed_up_at,is_test,click_id,webhook_nonce)
+      SELECT ${id}, l.slug, ${new Date(at).toISOString()}::timestamptz, (${test} OR c.is_test OR c.is_example), c.id, ${nonce}
+      FROM gg_leads l JOIN gg_clicks c ON c.slug=l.slug WHERE l.slug=${claim.slug} AND c.click_token=${token} AND c.clicked_at<=${new Date(at).toISOString()}::timestamptz
+      ON CONFLICT DO NOTHING RETURNING id`;
+    return privateJson({ok:true,recorded:rows.length>0});
+  } catch(e) { return privateJson({error:e instanceof RequestTooLarge?"Too large.":"Signup could not be recorded."},e instanceof RequestTooLarge?413:400); }
 }

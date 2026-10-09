@@ -14,7 +14,7 @@ const count = (n: number, one: string, many: string) => `${n.toLocaleString()} $
 
 /** The work comes to you: replies waiting for an answer, bounces to fix, follow-ups that are due. One tap opens the lead. */
 export function NeedsAction() {
-  const { data, fetchedAt, error } = useActivity();
+  const { data, fetchedAt, error, refresh } = useActivity();
   const { openLead } = useUIState();
   const [all, setAll] = useState(false);
   const queue: QueueItem[] = data?.queue ?? [];
@@ -28,8 +28,8 @@ export function NeedsAction() {
       <span className="gg-fresh">{data ? <RelTime value={fetchedAt ?? data.generatedAt} prefix="Updated " /> : null}</span>
     </div>
     {!data ? (error ? <p className="gg-needs-empty" role="alert">Couldn&apos;t read the action queue. It will retry shortly.</p> : <div className="gg-needs-skeleton" aria-hidden="true"><Skeleton className="gg-sk-hero-rest" /><Skeleton className="gg-sk-hero-rest" /></div>)
-      : !queue.length && (data.sync.state === "failing" || data.sync.state === "stale") ? <p className="gg-needs-empty">Can&apos;t confirm what needs you: the last sync is out of date. See the warning above.</p>
-      : !queue.length ? <p className="gg-needs-empty">{sentSomething || data.sync.state === "ok" && data.sync.counts && Number(data.sync.counts.matched) > 0 ? "You're clear. No replies waiting, nothing bounced, no follow-ups due." : "Nothing yet. Replies, bounces and follow-ups appear here once sending starts."}</p>
+      : !queue.length && (error || data.sync.state === "failing" || data.sync.state === "stale") ? <div className="gg-needs-empty"><p>Can&apos;t confirm what needs you: the last sync is out of date. See the warning above.</p><button className="gg-button gg-secondary" onClick={() => void refresh()}>Retry reading activity</button></div>
+      : !queue.length ? <p className="gg-needs-empty">{data.sync.state === "ok" && (sentSomething || data.sync.counts && Number(data.sync.counts.matched) > 0) ? "You're clear. No replies waiting, nothing bounced, no follow-ups due." : "Nothing yet. Replies, bounces and follow-ups appear here once sending starts."}</p>
       : <>
         <p className="gg-needs-summary">{summary}</p>
         <ul className="gg-needs-list">{shown.map(q => <li key={q.slug + q.kind}>

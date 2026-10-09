@@ -11,6 +11,7 @@ export const AUDIT_COLUMNS = [...LEGACY_AUDIT_COLUMNS, "contact_type", "contact_
 export const CSV_COLUMNS = [...BASE_CSV_COLUMNS, ...AUDIT_COLUMNS] as const;
 export type Stage = typeof STAGES[number];
 export interface Lead {
+  version?: string;
   name: string;
   handle: string;
   platform: typeof PLATFORMS[number];

@@ -311,8 +311,8 @@ main:focus { outline: none; }
 @keyframes pop { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes drawer-panel-in { from { opacity: .6; transform: translateX(32px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes draft-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
-@keyframes palette-in { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes draft-dialog-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes palette-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 .drawer-panel-enter { animation: drawer-panel-in var(--d-slow) var(--ease-out); }
 .draft-dialog-enter { animation: draft-dialog-in var(--d-base) var(--ease-spring); }
 .palette-enter { animation: palette-in var(--d-base) var(--ease-spring); }
@@ -445,6 +445,11 @@ main:focus { outline: none; }
 }
 
 /* ───────────────────────── Accessibility preferences ───────────────────────── */
+:root { --hit-target: 44px; }
+/* Shared across viewport, input modality and component. Plain times nested in buttons stay plain. */
+:is(button, a[href], input:not([type="checkbox"]):not([type="radio"]), select, textarea, summary, [tabindex="0"]) { min-width: var(--hit-target) !important; min-height: var(--hit-target) !important; }
+a[href], time[tabindex="0"] { display: inline-flex; align-items: center; }
+label:has(input[type="checkbox"]), label:has(input[type="radio"]) { min-height: var(--hit-target); display: inline-flex; align-items: center; }
 @media (prefers-reduced-transparency: reduce) {
   .gg-topbar, .gg-tabbar { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
   .gg-modal-backdrop, .gg-palette-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--overlay); }

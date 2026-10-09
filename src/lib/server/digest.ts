@@ -8,6 +8,7 @@ import { buildQueue } from "@/lib/activity";
 import { buildStatusLine } from "@/lib/status-line";
 import { isExample } from "@/lib/outreach";
 import { nextMondayNineET, renderDigest, type DigestModel, type DigestSendState } from "@/lib/digest";
+import { randomUUID } from "node:crypto";
 
 const DAY = 86_400_000;
 
@@ -16,7 +17,7 @@ export async function buildDigest(now = new Date()): Promise<DigestModel> {
   const since = new Date(now.getTime() - 7 * DAY).toISOString();
   await initializeDatabase();
   const [stats, snapshot, attribution, sync, weekClicks] = await Promise.all([
-    loadStats(), latestSnapshot().catch(() => null), loadAttribution(leads), currentSyncHealth(),
+    loadStats(), latestSnapshot().catch(() => null), loadAttribution(leads, since), currentSyncHealth(),
     database()`SELECT slug, count(*)::int AS n FROM gg_clicks WHERE NOT is_test AND NOT is_example AND clicked_at >= ${since}::timestamptz GROUP BY slug`,
   ]);
   const queue = buildQueue(leads, stats, now.getTime());
@@ -45,7 +46,7 @@ export async function buildDigest(now = new Date()): Promise<DigestModel> {
       { label: "Replied", value: num(campaign?.replied), note: `${replies.length} reply thread${replies.length === 1 ? "" : "s"} this week` },
       { label: "Bounced", value: num(campaign?.bounced), note: "campaign total" },
       { label: "Link visits (7 days)", value: visits.toLocaleString(), note: "creator links, real visits only" },
-      { label: "Signups from creators", value: attribution.live ? attribution.signups.toLocaleString() : "—", note: attribution.live ? "attributed to a creator link" : "starts when the signup link is live" },
+      { label: "Signups from creators (7 days)", value: attribution.live ? attribution.signups.toLocaleString() : "—", note: attribution.live ? "verified signups from this week's link visits" : "starts when the signup link is live" },
     ],
     topCreators, topNote: "No creator link visits yet this week.", replies,
     needs: { replies: queue.filter(q => q.kind === "reply").length, bounces: queue.filter(q => q.kind === "bounce").length, followups: queue.filter(q => q.kind === "followup").length },
@@ -55,31 +56,47 @@ export async function buildDigest(now = new Date()): Promise<DigestModel> {
 
 export async function digestState(): Promise<DigestSendState> {
   await initializeDatabase();
-  const missing = ["RESEND_API_KEY", "DIGEST_FROM", "DIGEST_RECIPIENTS"].filter(k => !process.env[k]?.trim());
+  const missing = [["RESEND_API_KEY","mail connection"], ["DIGEST_FROM","sender"], ["DIGEST_RECIPIENTS","recipients"]].filter(([key]) => !process.env[key]?.trim()).map(([,label]) => label);
   const rows = await database()`SELECT kind, max(recorded_at) AS at FROM gg_internal_audit WHERE kind IN ('digest-sent','digest-skipped') GROUP BY kind`;
   const at = (kind: string) => { const r = rows.find(x => x.kind === kind); return r?.at ? new Date(r.at).toISOString() : null; };
   return { enabled: process.env.DIGEST_SEND_ENABLED === "true", ready: !missing.length, missing, recipients: (process.env.DIGEST_RECIPIENTS ?? "").split(",").filter(s => s.trim()).length, nextSendAt: nextMondayNineET(), lastSentAt: at("digest-sent"), lastSkipped: at("digest-skipped") };
 }
 
-/** Sends only when DIGEST_SEND_ENABLED=true and the mail settings exist; otherwise it records that it was skipped. */
+/** The database claim serializes triggers; the provider key also protects an ambiguous delivery retry. */
 export async function sendDigest(): Promise<{ sent: boolean; reason?: string }> {
   await initializeDatabase();
   const state = await digestState();
   if (!state.enabled) {
-    await database()`INSERT INTO gg_internal_audit(kind,data) VALUES ('digest-skipped',${JSON.stringify({ reason: "sending is off" })}::jsonb)`;
     return { sent: false, reason: "Sending is off." };
   }
-  if (!state.ready) return { sent: false, reason: `Missing ${state.missing.join(", ")}.` };
+  if (!state.ready) return { sent: false, reason: "Email delivery is not configured yet." };
   // Once per week however many triggers land in the window (Vercel's cron, the GitHub schedule, a retry).
-  if (state.lastSentAt && Date.now() - Date.parse(state.lastSentAt) < 5 * DAY) return { sent: false, reason: "Already sent this week." };
+  const localDay = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+  const monday = new Date(localDay + "T12:00:00Z");
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  const week = monday.toISOString().slice(0, 10), owner = randomUUID(), sql = database();
+  const claim = await sql`INSERT INTO gg_digest_deliveries(week,owner,status) VALUES (${week},${owner},'sending')
+    ON CONFLICT (week) DO UPDATE SET owner=EXCLUDED.owner, status='sending', claimed_at=now()
+    WHERE gg_digest_deliveries.status <> 'sent' AND gg_digest_deliveries.claimed_at < now() - interval '10 minutes'
+    RETURNING owner`;
+  if (!claim.length) return { sent: false, reason: "Already sent or sending this week." };
+  try {
   const model = await buildDigest();
   const { html, text } = renderDigest(model);
   const response = await fetch("https://api.resend.com/emails", {
-    method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": `gg-outreach-weekly-${week}` },
     body: JSON.stringify({ from: process.env.DIGEST_FROM, to: process.env.DIGEST_RECIPIENTS!.split(",").map(s => s.trim()).filter(Boolean), subject: model.subject, html, text }),
     signal: AbortSignal.timeout(20000),
   });
   if (!response.ok) throw new Error(`Digest mail failed (HTTP ${response.status}).`);
-  await database()`INSERT INTO gg_internal_audit(kind,data) VALUES ('digest-sent',${JSON.stringify({ recipients: state.recipients })}::jsonb)`;
+  await sql.transaction([
+    sql`UPDATE gg_digest_deliveries SET status='sent',sent_at=now() WHERE week=${week} AND owner=${owner}`,
+    sql`INSERT INTO gg_internal_audit(kind,data) VALUES ('digest-sent',${JSON.stringify({ recipients: state.recipients })}::jsonb)`,
+  ]);
   return { sent: true };
+  } catch (error) {
+    // Retain the claim for ten minutes after ambiguous timeouts; retries reuse the provider key.
+    await sql`UPDATE gg_digest_deliveries SET status='failed' WHERE week=${week} AND owner=${owner}`;
+    throw error;
+  }
 }

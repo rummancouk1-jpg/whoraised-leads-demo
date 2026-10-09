@@ -5,7 +5,7 @@ import type { Lead, Stage } from "@/types/outreach";
 import { navigateSession } from "@/lib/session-navigation";
 import { summarizeLeads, type LeadSummary } from "@/lib/summary";
 import { useToast } from "./ToastContext";
-type Patch = Partial<Pick<Lead, "stage" | "notes" | "signups" | "last_touch">>;
+type Patch = Partial<Pick<Lead, "stage" | "notes" | "signups" | "last_touch">> & { expectedStage?: Stage };
 type Undo = { slug: string; name: string; from: Stage; to: Stage };
 async function request(url: string, options?: RequestInit) {
   const response = await fetch(url, { cache: "no-store", ...options });
@@ -14,11 +14,11 @@ async function request(url: string, options?: RequestInit) {
   if (!response.ok) throw new Error(result.error || "Shared workspace could not be loaded.");
   return result;
 }
-function useWorkspace(initialSummary: LeadSummary | null) {
+function useWorkspace(initialSummary: LeadSummary | null, initialLeads: Lead[] | null) {
   const { toast } = useToast();
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<Lead[]>(initialLeads ?? []);
   const [clicks, setClicks] = useState<{ leads: { slug: string; clicks: number }[]; groups: { group: string; clicks: number }[]; dailyBySlug: { slug: string; day: string; clicks: number }[]; daily: { day: string; clicks: number }[]; tests: { slug: string; clicks: number }[] } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialLeads === null);
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState("Loading shared workspace…");
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -29,7 +29,8 @@ function useWorkspace(initialSummary: LeadSummary | null) {
   const revision = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requests = useRef<AbortController | null>(null);
-  const leadsRef = useRef<Lead[]>([]);
+  const leadsRef = useRef<Lead[]>(initialLeads ?? []);
+  const versions = useRef(new Map((initialLeads ?? []).map(l => [l.tracked_slug, l.version])));
   const undoStack = useRef<Undo[]>([]);
   const retry = useRef<() => void>(() => {});
   useEffect(() => { leadsRef.current = leads; }, [leads]);
@@ -39,7 +40,7 @@ function useWorkspace(initialSummary: LeadSummary | null) {
       const result = await request("/api/leads", { signal: requests.current?.signal });
       setClicksAt(Date.now());
       setClicks(old => JSON.stringify(old) === JSON.stringify(result.clicks) ? old : result.clicks);
-      if (requestedRevision === revision.current && !saving.current && !Object.keys(pending.current).length) { setLeads(old => JSON.stringify(old) === JSON.stringify(result.leads) ? old : result.leads); setError(""); setSaveStatus("All edits saved to the shared workspace."); setSavedAt(Date.now()); }
+      if (requestedRevision === revision.current && !saving.current && !Object.keys(pending.current).length) { versions.current = new Map((result.leads as Lead[]).map(l => [l.tracked_slug, l.version])); setLeads(old => JSON.stringify(old) === JSON.stringify(result.leads) ? old : result.leads); setError(""); setSaveStatus("All edits saved to the shared workspace."); setSavedAt(Date.now()); }
     } catch(e) { if (!requests.current?.signal.aborted) setError((e as Error).message); }
     finally { setLoading(false); }
   }, []);
@@ -51,7 +52,7 @@ function useWorkspace(initialSummary: LeadSummary | null) {
         const slug = Object.keys(pending.current)[0];
         const patch = pending.current[slug];
         delete pending.current[slug];
-        try { await request(`/api/leads/${encodeURIComponent(slug)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); revision.current++; /* a poll that began before this save landed must not overwrite it */ }
+        try { const result = await request(`/api/leads/${encodeURIComponent(slug)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...patch, expectedVersion: versions.current.get(slug) }) }); versions.current.set(slug, result.lead.version); setLeads(old => old.map(l => l.tracked_slug === slug ? { ...l, version: result.lead.version } : l)); revision.current++; }
         catch(e) { pending.current[slug] = { ...patch, ...pending.current[slug] }; throw e; }
       }
       setError(""); setSaveStatus("All edits saved to the shared workspace."); setSavedAt(Date.now());
@@ -90,10 +91,10 @@ function useWorkspace(initialSummary: LeadSummary | null) {
   }, [flush]);
   const undoMove = useCallback((entry: Undo) => {
     const current = leadsRef.current.find(l => l.tracked_slug === entry.slug);
-    if (!current) return;
+    if (!current || current.stage !== entry.to) { toast({ message: "This lead has changed since that move. Refresh it before undoing.", tone: "error" }); return; }
     undoStack.current = undoStack.current.filter(e => e !== entry);
-    update(entry.slug, { stage: entry.from });
-    toast({ message: `Restored ${entry.name} to ${entry.from}`, duration: 4000 });
+    update(entry.slug, { stage: entry.from, expectedStage: entry.to });
+    toast({ message: `Restoring ${entry.name} to ${entry.from}…`, duration: 4000 });
   }, [update, toast]);
   /** A stage change with an undo toast. Used by the board, the drawer and the card stage menu. */
   const moveStage = useCallback((slug: string, stage: Stage) => {
@@ -117,14 +118,15 @@ function useWorkspace(initialSummary: LeadSummary | null) {
       if (saving.current || Object.keys(pending.current).length) throw new Error("Wait for edits to save before importing.");
       const result = await request("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv: exportCsv(incoming), replace, oneTime }) });
       revision.current++;
+      versions.current = new Map((result.leads as Lead[]).map(l => [l.tracked_slug, l.version]));
       setLeads(result.leads); setError("");
     },
   };
 }
 type Workspace = ReturnType<typeof useWorkspace>;
 const Context = createContext<Workspace | null>(null);
-export function OutreachProvider({ children, initialSummary = null }: { children: ReactNode; initialSummary?: LeadSummary | null }) {
-  const workspace = useWorkspace(initialSummary);
+export function OutreachProvider({ children, initialSummary = null, initialLeads = null }: { children: ReactNode; initialSummary?: LeadSummary | null; initialLeads?: Lead[] | null }) {
+  const workspace = useWorkspace(initialSummary, initialLeads);
   return <Context.Provider value={workspace}>{children}</Context.Provider>;
 }
 export function useOutreach() {

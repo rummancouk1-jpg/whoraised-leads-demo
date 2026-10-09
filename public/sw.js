@@ -33,7 +33,7 @@ self.addEventListener("fetch", event => {
     if (hit) return hit;
     const response = await fetch(request);
     // Only successful, non-redirected, cookie-free public files are stored.
-    if (response.ok && response.type === "basic" && !response.redirected && !response.headers.has("set-cookie")) cache.put(request, response.clone());
+    if (response.ok && response.type === "basic" && !response.redirected && !response.headers.has("set-cookie")) await cache.put(request, response.clone());
     return response;
   }));
 });

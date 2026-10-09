@@ -26,7 +26,9 @@ export function RelTime({ value, prefix = "", fallback = "—", plain = false }:
   useEffect(() => () => { if (press.current) clearTimeout(press.current); if (hide.current) clearTimeout(hide.current); }, []);
   const parsed = parseTime(value);
   if (!parsed) return <span>{fallback}</span>;
-  const exact = exactTime(value);
+  // The server and viewer can have different time zones. Hydration must start
+  // with the same text; local exact times appear with the shared client clock.
+  const exact = now === 0 ? "Exact time loads with the workspace" : exactTime(value);
   const text = now === 0 ? "recently" : relativeTime(value, now);
   // Inside a button or link the time must not be interactive (a tap on it would swallow the click and nest focusable controls).
   if (plain) return <time dateTime={parsed.dateOnly ? String(value) : parsed.date.toISOString()}>{prefix}{text}<span className="gg-sr-only">, {exact}</span></time>;

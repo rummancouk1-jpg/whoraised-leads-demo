@@ -20,17 +20,19 @@ export function safeReferrer(value: string) {
   catch { return ""; }
 }
 
-export function preregDestination(slug: string, configured = "https://earningstournament.com", incoming?: string) {
+export function preregDestination(slug: string, configured = "https://earningstournament.com", incoming?: string, token?: string) {
   const url = new URL(configured);
   if (!/^https?:$/.test(url.protocol) || url.username || url.password) throw new Error("Invalid PREREG_URL");
   url.searchParams.set("utm_source", "creator");
   url.searchParams.set("utm_campaign", "gg-q3");
   url.searchParams.set("utm_content", slug);
   if (incoming) {
+    if (isTestClick(slug,incoming)) url.searchParams.set("test","1");
     for (const [key, value] of new URL(incoming).searchParams) {
       // Preserve campaign UTMs; the stored creator slug remains authoritative.
       if (/^utm_[a-z_]+$/.test(key) && key !== "utm_content") url.searchParams.set(key, value);
     }
   }
+  if (token) url.searchParams.set("gg_click",token);
   return url.toString();
 }

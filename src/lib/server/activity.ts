@@ -3,7 +3,7 @@ import { database, initializeDatabase } from "./db";
 import { getLeads } from "./leads";
 import { currentSyncHealth } from "./sync";
 import { recentErrors } from "./errors";
-import { buildQueue, buildTimeline, type ActivityResponse, type Attribution, type LeadStats, type TimelineStep } from "@/lib/activity";
+import { buildQueue, buildTimeline, type ActivityResponse, type Attribution, type LeadStats, type TimelineStep, type TimelineEvent } from "@/lib/activity";
 import { isExample } from "@/lib/outreach";
 import type { Lead } from "@/types/outreach";
 
@@ -11,21 +11,23 @@ const iso = (v: unknown) => v ? new Date(v as string).toISOString() : null;
 
 export async function loadStats(): Promise<Record<string, LeadStats>> {
   await initializeDatabase();
-  const rows = await database()`SELECT slug,email,sent,opened,replied,clicked,bounced,unsubscribed,interest,last_outbound_at,last_inbound_at,last_open_at,last_click_at,synced_at FROM gg_lead_stats`;
-  return Object.fromEntries(rows.map(r => [r.slug, { slug: r.slug, email: r.email, sent: r.sent, opened: r.opened, replied: r.replied, clicked: r.clicked, bounced: r.bounced, unsubscribed: r.unsubscribed, interest: r.interest, lastOutboundAt: iso(r.last_outbound_at), lastInboundAt: iso(r.last_inbound_at), lastOpenAt: iso(r.last_open_at), lastClickAt: iso(r.last_click_at), syncedAt: iso(r.synced_at)! } satisfies LeadStats]));
+  const rows = await database()`SELECT slug,email,sent,opened,replied,clicked,bounced,unsubscribed,interest,last_outbound_at,last_inbound_at,last_open_at,last_click_at,synced_at,unknown_fields FROM gg_lead_stats WHERE slug !~* '^(example|test)-'`;
+  return Object.fromEntries(rows.map(r => [r.slug, { slug: r.slug, email: r.email, sent: r.sent, opened: r.unknown_fields?.includes("opened") ? null : r.opened, replied: r.replied, clicked: r.unknown_fields?.includes("clicked") ? null : r.clicked, bounced: r.bounced, unsubscribed: r.unsubscribed, interest: r.interest, lastOutboundAt: iso(r.last_outbound_at), lastInboundAt: iso(r.last_inbound_at), lastOpenAt: iso(r.last_open_at), lastClickAt: iso(r.last_click_at), syncedAt: iso(r.synced_at)! } satisfies LeadStats]));
 }
 
 /**
  * Attribution is "live" once the signup link is live: an explicit PREREG_LIVE_AT date has passed, or a real signup has
  * already been reported. Until then the answer is a message, never a table of zeros.
  */
-export async function loadAttribution(leads: Lead[]): Promise<Attribution> {
+export async function loadAttribution(leads: Lead[], windowStart?: string): Promise<Attribution> {
   await initializeDatabase();
   const sql = database();
   const configured = process.env.PREREG_LIVE_AT ? Date.parse(process.env.PREREG_LIVE_AT) : NaN;
-  const since = Number.isFinite(configured) ? new Date(configured).toISOString() : null;
+  const since = Number.isFinite(configured) ? new Date(Math.max(configured,windowStart ? Date.parse(windowStart) : configured)).toISOString() : windowStart ?? null;
   const [signups, clickRows] = await Promise.all([
-    sql`SELECT slug, count(*)::int AS n, max(signed_up_at) AS last_at, min(signed_up_at) AS first_at FROM gg_signups WHERE NOT is_test GROUP BY slug`,
+    sql`SELECT s.slug, count(*)::int AS n, max(s.signed_up_at) AS last_at, min(s.signed_up_at) AS first_at FROM gg_signups s JOIN gg_clicks c ON c.id=s.click_id AND c.slug=s.slug
+      WHERE NOT s.is_test AND NOT c.is_test AND NOT c.is_example AND s.slug !~* '^(example|test)-' AND s.signed_up_at>=c.clicked_at AND s.signed_up_at<=now()
+      AND (${since}::timestamptz IS NULL OR (s.signed_up_at>=${since}::timestamptz AND c.clicked_at>=${since}::timestamptz)) GROUP BY s.slug`,
     sql`SELECT slug, count(*)::int AS n FROM gg_clicks WHERE NOT is_test AND NOT is_example AND (${since}::timestamptz IS NULL OR clicked_at >= ${since}::timestamptz) GROUP BY slug`,
   ]);
   const live = (Number.isFinite(configured) && configured <= Date.now()) || signups.length > 0;
@@ -40,21 +42,25 @@ export async function loadAttribution(leads: Lead[]): Promise<Attribution> {
 
 export async function getActivity(known?: Lead[]): Promise<ActivityResponse> {
   const leads = known ?? await getLeads();
-  const [stats, sync, attribution, errors] = await Promise.all([loadStats(), currentSyncHealth(), loadAttribution(leads), recentErrors(24)]);
+  const [loadedStats, sync, attribution, errors] = await Promise.all([loadStats(), currentSyncHealth(), loadAttribution(leads), recentErrors(24)]);
+  const stats = sync.lastError?.startsWith("Instantly has no selected campaign") ? {} : loadedStats;
   return { generatedAt: new Date().toISOString(), sync, queue: buildQueue(leads, stats), stats, attribution, errors24h: errors.reduce((n, e) => n + e.count, 0) };
 }
 
-export async function leadTimeline(slug: string): Promise<{ steps: TimelineStep[]; syncedAt: string | null }> {
+export async function leadTimeline(slug: string): Promise<{ steps: TimelineStep[]; events: TimelineEvent[]; syncedAt: string | null }> {
   await initializeDatabase();
   const sql = database();
-  const [stats, clicks, signups] = await Promise.all([
+  const liveAt = process.env.PREREG_LIVE_AT;
+  const since = liveAt && Number.isFinite(Date.parse(liveAt)) ? new Date(liveAt).toISOString() : null;
+  const [stats, clicks, signups, storedEvents] = await Promise.all([
     loadStats(),
-    sql`SELECT count(*)::int AS n, max(clicked_at) AS last_at FROM gg_clicks WHERE slug=${slug} AND NOT is_test AND NOT is_example`,
-    sql`SELECT count(*)::int AS n, max(signed_up_at) AS last_at FROM gg_signups WHERE slug=${slug} AND NOT is_test`,
+    sql`SELECT count(*)::int AS n, max(clicked_at) AS last_at FROM gg_clicks WHERE slug=${slug} AND NOT is_test AND NOT is_example AND (${since}::timestamptz IS NULL OR clicked_at>=${since}::timestamptz)`,
+    sql`SELECT count(*)::int AS n, max(s.signed_up_at) AS last_at FROM gg_signups s JOIN gg_clicks c ON c.id=s.click_id AND c.slug=s.slug WHERE s.slug=${slug} AND NOT s.is_test AND NOT c.is_test AND NOT c.is_example AND s.signed_up_at>=c.clicked_at AND (${since}::timestamptz IS NULL OR (s.signed_up_at>=${since}::timestamptz AND c.clicked_at>=${since}::timestamptz))`,
+    sql`SELECT ref,kind,at,n FROM gg_lead_events WHERE slug=${slug} AND at IS NOT NULL ORDER BY at,ref`,
   ]);
   const lead = (await getLeads()).find(l => l.tracked_slug === slug);
   const attributed = signups[0].n > 0;
   const signupCount = attributed ? signups[0].n : lead?.signups ?? 0;
   const s = stats[slug];
-  return { steps: buildTimeline(s, { count: clicks[0].n, lastAt: iso(clicks[0].last_at) }, { count: signupCount, lastAt: iso(signups[0].last_at), attributed }), syncedAt: s?.syncedAt ?? null };
+  return { steps: buildTimeline(s, { count: clicks[0].n, lastAt: iso(clicks[0].last_at) }, { count: signupCount, lastAt: iso(signups[0].last_at), attributed, live: !!since && Date.parse(since)<=Date.now() || attributed }), events: storedEvents.map(r => ({ref:r.ref,kind:r.kind,at:iso(r.at)!,n:r.n})), syncedAt: s?.syncedAt ?? null };
 }

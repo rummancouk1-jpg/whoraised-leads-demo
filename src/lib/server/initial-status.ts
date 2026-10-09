@@ -5,8 +5,10 @@ import { getLeads } from "./leads";
 import { latestSnapshot } from "./snapshots";
 import { getActivity } from "./activity";
 import type { ActivityResponse } from "@/lib/activity";
+import { withDatabaseDeadline } from "./db";
+import type { Lead } from "@/types/outreach";
 
-export type InitialStatus = { summary: LeadSummary | null; snapshot: EmailMetrics | null; activity: ActivityResponse | null };
+export type InitialStatus = { leads: Lead[] | null; summary: LeadSummary | null; snapshot: EmailMetrics | null; activity: ActivityResponse | null };
 
 /**
  * What the first HTML needs to answer "where does the campaign stand?": lead counts from the database and the newest
@@ -14,9 +16,10 @@ export type InitialStatus = { summary: LeadSummary | null; snapshot: EmailMetric
  * to null on its own so a slow or failing read only means that part loads on the client with a skeleton.
  */
 export async function getInitialStatus(): Promise<InitialStatus> {
-  const within = <T,>(work: Promise<T>, ms: number) => Promise.race([work, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
+  return withDatabaseDeadline(async () => {
   // One lead read feeds both the counts and the action queue.
-  const leadsRead = within(getLeads(), 2500);
-  const [leads, snapshot, activity] = await Promise.allSettled([leadsRead, within(latestSnapshot(), 2500), within(leadsRead.then(l => getActivity(l)), 2500)]);
-  return { summary: leads.status === "fulfilled" ? summarizeLeads(leads.value) : null, snapshot: snapshot.status === "fulfilled" ? snapshot.value : null, activity: activity.status === "fulfilled" ? activity.value : null };
+  const leadsRead = getLeads();
+  const [leads, snapshot, activity] = await Promise.allSettled([leadsRead, latestSnapshot(), leadsRead.then(l => getActivity(l))]);
+  return { leads: leads.status === "fulfilled" ? leads.value : null, summary: leads.status === "fulfilled" ? summarizeLeads(leads.value) : null, snapshot: snapshot.status === "fulfilled" ? snapshot.value : null, activity: activity.status === "fulfilled" ? activity.value : null };
+  });
 }

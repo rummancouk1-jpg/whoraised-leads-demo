@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { equal, SESSION_COOKIE, validSession } from "@/lib/server/auth";
+import { equal, SESSION_COOKIE, validSessionSignature } from "@/lib/server/auth";
 
 export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
   // Machine endpoints that carry their own bearer secret and are checked again inside the route: OHQ Watch polls and the signup webhook.
   const machine = ["/api/ohq/health", "/api/ohq/watch", "/api/ohq/reconcile", "/api/ohq/canary"].includes(path) || (path === "/api/attribution/signup" && request.method === "POST");
   const cron = ["/api/cron/email-snapshot", "/api/cron/instantly-sync", "/api/cron/digest"].includes(path) && !!process.env.CRON_SECRET && equal(request.headers.get("authorization") ?? "", `Bearer ${process.env.CRON_SECRET}`);
-  if (path === "/login" || path.startsWith("/go/") || publicAsset || loginAttempt || machine || cron || await validSession(request.cookies.get(SESSION_COOKIE)?.value ?? "")) return secure(NextResponse.next({ request: { headers: requestHeaders } }));
+  if (path === "/login" || path.startsWith("/go/") || publicAsset || loginAttempt || machine || cron || validSessionSignature(request.cookies.get(SESSION_COOKIE)?.value ?? "")) return secure(NextResponse.next({ request: { headers: requestHeaders } }));
   if (path.startsWith("/api/")) return secure(NextResponse.json({ error: "Please log in." }, { status: 401, headers: { "Cache-Control": "private, no-store" } }));
   return secure(NextResponse.rewrite(new URL("/login", request.url), { request: { headers: requestHeaders }, status: 401, headers: { "Cache-Control": "private, no-store" } }));
 }

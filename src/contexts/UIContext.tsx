@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastContext";
+import { trackDialogTriggers } from "@/hooks/useFocusTrap";
 
 export type Filters = { platform: string; niche: string; stage: string; kind: string; us_focus: string; band: string; minScore: string };
 export type ViewState = { search: string; filters: Filters; sort: string; showLongTail: boolean };
@@ -98,6 +99,7 @@ function useUI() {
 type UI = ReturnType<typeof useUI>;
 const Context = createContext<UI | null>(null);
 export function UIProvider({ children }: { children: ReactNode }) {
+  useEffect(trackDialogTriggers, []);
   const ui = useUI();
   return <Context.Provider value={ui}>{children}</Context.Provider>;
 }

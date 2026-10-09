@@ -10,7 +10,7 @@ export const STALE_AFTER_MIN = 40;
 /** Per-lead engagement as last read from Instantly (timestamps are ISO strings or null). */
 export type LeadStats = {
   slug: string; email: string;
-  sent: number; opened: number; replied: number; clicked: number;
+  sent: number; opened: number | null; replied: number; clicked: number | null;
   bounced: boolean; unsubscribed: boolean; interest: number | null;
   lastOutboundAt: string | null; lastInboundAt: string | null; lastOpenAt: string | null; lastClickAt: string | null;
   syncedAt: string;
@@ -28,6 +28,7 @@ export type QueueItem = { slug: string; name: string; kind: QueueKind; reason: s
 export type AttributionRow = { slug: string; name: string; clicks: number; signups: number };
 export type Attribution = { live: boolean; since: string | null; rows: AttributionRow[]; clicks: number; signups: number; lastSignupAt: string | null };
 export type TimelineStep = { key: "sent" | "opened" | "replied" | "clicked" | "signed_up"; label: string; done: boolean; at: string | null; detail: string };
+export type TimelineEvent = { ref: string; kind: string; at: string; n: number };
 export type ActivityResponse = {
   generatedAt: string;
   sync: SyncHealth;
@@ -53,7 +54,7 @@ export function buildQueue(leads: Lead[], stats: Record<string, LeadStats>, now 
     const s = stats[lead.tracked_slug];
     const touched = ms(lead.last_touch);
     const inbound = ms(s?.lastInboundAt), outbound = ms(s?.lastOutboundAt);
-    if (s && inbound !== null && (outbound === null || inbound > outbound) && (touched === null || touched + DAY <= inbound)) {
+    if (s && inbound !== null && (outbound === null || inbound > outbound) && (touched === null || touched < inbound)) {
       items.push({ slug: lead.tracked_slug, name: lead.name, kind: "reply", reason: "Replied and waiting for your answer", since: new Date(inbound).toISOString(), days: Math.floor((now - inbound) / DAY) });
       continue;
     }
@@ -71,15 +72,15 @@ export function buildQueue(leads: Lead[], stats: Record<string, LeadStats>, now 
 }
 
 /** The five steps of one lead's journey, each either reached (with a time and detail) or still ahead. */
-export function buildTimeline(stats: LeadStats | undefined, linkClicks: { count: number; lastAt: string | null }, signups: { count: number; lastAt: string | null; attributed: boolean }): TimelineStep[] {
+export function buildTimeline(stats: LeadStats | undefined, linkClicks: { count: number; lastAt: string | null }, signups: { count: number; lastAt: string | null; attributed: boolean; live?: boolean }): TimelineStep[] {
   const s = stats;
   const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
   return [
     { key: "sent", label: "Sent", done: !!s && s.sent > 0, at: s?.lastOutboundAt ?? null, detail: s && s.sent ? plural(s.sent, "email") + " sent" : s ? "Not sent yet" : "Not in Instantly yet" },
-    { key: "opened", label: "Opened", done: !!s && s.opened > 0, at: s?.lastOpenAt ?? null, detail: s && s.opened ? plural(s.opened, "open") : "No opens yet" },
+    { key: "opened", label: "Opened", done: !!s && (s.opened ?? 0) > 0, at: s?.lastOpenAt ?? null, detail: s?.opened == null ? "Open count not reported" : s.opened ? plural(s.opened, "open") : "No opens yet" },
     { key: "replied", label: "Replied", done: !!s && s.replied > 0, at: s?.lastInboundAt ?? null, detail: s && s.replied ? `${s.replied.toLocaleString()} ${s.replied === 1 ? "reply" : "replies"}` : "No reply yet" },
-    { key: "clicked", label: "Clicked", done: linkClicks.count > 0 || !!s && s.clicked > 0, at: linkClicks.lastAt ?? s?.lastClickAt ?? null, detail: linkClicks.count ? plural(linkClicks.count, "visit") + " to the creator link" : s && s.clicked ? plural(s.clicked, "link click") + " in email" : "No link visits yet" },
-    { key: "signed_up", label: "Signed up", done: signups.count > 0, at: signups.lastAt, detail: signups.count ? `${plural(signups.count, "signup")}${signups.attributed ? "" : " (entered by hand)"}` : "Attribution starts when the signup link is live" },
+    { key: "clicked", label: "Clicked", done: linkClicks.count > 0 || !!s && (s.clicked ?? 0) > 0, at: linkClicks.lastAt ?? s?.lastClickAt ?? null, detail: linkClicks.count ? plural(linkClicks.count, "visit") + " to the creator link" : s && s.clicked ? plural(s.clicked, "link click") + " in email" : s?.clicked == null ? "Email clicks not reported; no creator link visits" : "No link visits yet" },
+    { key: "signed_up", label: "Signed up", done: signups.count > 0, at: signups.lastAt, detail: signups.count ? `${plural(signups.count, "signup")}${signups.attributed ? "" : " (entered by hand)"}` : signups.live ? "No verified signups yet" : "Attribution starts when the signup link is live" },
   ];
 }
 

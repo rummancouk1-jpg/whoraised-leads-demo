@@ -1,0 +1,35 @@
+name: R2 preview Lighthouse
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: Immutable preview deployment URL
+        required: true
+        type: string
+  push:
+    branches: [design/elevation]
+    paths: [.github/workflows/r2-preview-lighthouse.yml, scripts/design/lighthouse.mjs, scripts/r2/lighthouse-medians.mjs]
+permissions:
+  contents: read
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GG_PREVIEW_URL: ${{ inputs.preview_url || secrets.GG_PREVIEW_URL }}
+      GG_ACCESS_PASSWORD: ${{ secrets.GG_PREVIEW_ACCESS_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Three mobile and three desktop runs on every signed-in page
+        run: node scripts/r2/lighthouse-medians.mjs "$GG_PREVIEW_URL"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r2-preview-lighthouse
+          path: evidence/r2-fix/offmachine

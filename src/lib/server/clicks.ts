@@ -2,12 +2,12 @@ import "server-only";
 import { database, initializeDatabase } from "./db";
 import { isTestClick, platformGuess, safeReferrer } from "@/lib/click-tracking";
 
-export async function recordClick(slug: string, agent: string, referrer: string, url?: string, marker = "") {
+export async function recordClick(slug: string, agent: string, referrer: string, url?: string, marker = "", token?: string) {
   await initializeDatabase();
   // Unknown slugs are never counted. Group is captured at click time.
-  const rows = await database()`INSERT INTO gg_clicks (slug, lead_group, referrer, platform_guess, is_example, is_test)
+  const rows = await database()`INSERT INTO gg_clicks (slug, lead_group, referrer, platform_guess, is_example, is_test, click_token)
     SELECT slug, data->>'platform', ${safeReferrer(referrer)}, ${platformGuess(agent, referrer)},
-      (data->>'name' ~* '\\mEXAMPLE\\M'), (${isTestClick(slug, url, agent, marker)} OR data->>'name' ~* '\\mEXAMPLE\\M') FROM gg_leads WHERE slug=${slug} RETURNING id`;
+      (data->>'name' ~* '\\mEXAMPLE\\M'), (${isTestClick(slug, url, agent, marker)} OR data->>'name' ~* '\\mEXAMPLE\\M'), ${token ?? null} FROM gg_leads WHERE slug=${slug} RETURNING id`;
   return rows.length > 0;
 }
 

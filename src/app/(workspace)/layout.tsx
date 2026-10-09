@@ -13,7 +13,7 @@ import { UIProvider } from "@/contexts/UIContext";
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   if (!await authenticated()) redirect("/login");
   const initial = await getInitialStatus();
-  return <ToastProvider><OutreachProvider initialSummary={initial.summary}><EmailProvider initialSnapshot={initial.snapshot}><ActivityProvider initial={initial.activity}><UIProvider>
+  return <ToastProvider><OutreachProvider initialSummary={initial.summary} initialLeads={initial.leads}><EmailProvider initialSnapshot={initial.snapshot}><ActivityProvider initial={initial.activity}><UIProvider>
     <a className="gg-skip" href="#main">Skip to content</a>
     <AppNav />
     {children}

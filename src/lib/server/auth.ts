@@ -1,7 +1,8 @@
 import "server-only";
 import { createHmac, createHash, timingSafeEqual, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { database, initializeDatabase } from "./db";
+import { database, initializeDatabase, withDatabaseDeadline } from "./db";
+import { cache } from "react";
 
 export const SESSION_COOKIE = "gg-session";
 export const SESSION_SECONDS = 60 * 60 * 24 * 14;
@@ -21,21 +22,28 @@ export async function issueSession() {
   await database()`INSERT INTO gg_sessions(token_hash, expires_at) VALUES (${sessionHash(token)}, to_timestamp(${Number(payload.split(".")[0])}))`;
   return token;
 }
-export async function authenticated() {
+export const authenticated = cache(async function authenticated() {
   return validSession((await cookies()).get(SESSION_COOKIE)?.value ?? "");
-}
+});
 const sessionHash = (value: string) => createHash("sha256").update(value).digest("hex");
 export async function revokeSession(value: string) {
   await initializeDatabase();
   await database()`DELETE FROM gg_sessions WHERE token_hash=${sessionHash(value)}`;
 }
 export async function validSession(value: string) {
+  return withDatabaseDeadline(async () => {
   try {
-    const [expiry, nonce, signature, extra] = value.split(".");
-    if (extra || !/^\d+$/.test(expiry) || !/^[a-f0-9]{32}$/.test(nonce ?? "") || !/^[a-f0-9]{64}$/.test(signature ?? "") || Number(expiry) <= Date.now() / 1000) return false;
-    if (!equal(signature, createHmac("sha256", secret()).update(`${expiry}.${nonce}`).digest("hex"))) return false;
+    if (!validSessionSignature(value)) return false;
     await initializeDatabase();
     return (await database()`SELECT 1 FROM gg_sessions WHERE token_hash=${sessionHash(value)} AND expires_at>now()`).length === 1;
+  } catch { return false; }
+  },1500);
+}
+/** Proxy's fast optimistic check; the layout and every data route check session revocation in the DB. */
+export function validSessionSignature(value: string) {
+  try {
+    const [expiry,nonce,signature,extra]=value.split(".");
+    return !extra && /^\d+$/.test(expiry) && /^[a-f0-9]{32}$/.test(nonce??"") && /^[a-f0-9]{64}$/.test(signature??"") && Number(expiry)>Date.now()/1000 && equal(signature,createHmac("sha256",secret()).update(`${expiry}.${nonce}`).digest("hex"));
   } catch { return false; }
 }
 export function sameOrigin(request: Request) {

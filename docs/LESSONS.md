@@ -91,3 +91,10 @@
 - Never remove a git worktree whose `node_modules` is a junction to the main one: Windows deletes the target's contents. `npm install` repaired it.
 - Tests must not read files that product rounds relocate (`public/gg-outreach-examples.csv`); build fixtures inline.
 - Compare Lighthouse against the previous tag built the same way, on the same machine, alternating runs, before blaming or clearing the code.
+
+## R2 fix-round preparation — 9 October 2026
+
+- Isolation must cover every database alias. This project's `DATABASE_URL`, direct/pooled Postgres URLs, host names, user names and passwords all target production, preview and development together. Splitting only one URL leaves alternate tools and future code able to reach production.
+- Capture production counts and row hashes using SELECT-only transactions before branching or exercising preview writes. A baseline alone does not establish that preview writes leave production unchanged; compare again around an actual preview write.
+- A missing Neon account profile is an infrastructure dependency. Install/check the CLI, request human sign-in, and keep the isolation mutation path gated. Even an API `--describe` request can start authentication; do not assume it is equivalent to offline `--help`.
+- Prepared scripts are not completed fixes. Record which paths actually ran and keep the replay, browser matrix, off-machine performance and production-preservation gates explicitly pending until evidence exists.

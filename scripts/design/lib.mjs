@@ -2,17 +2,18 @@ import fs from 'node:fs';
 export const root = process.env.EVIDENCE_ROOT || 'evidence/design-elevation';
 export function loadEnv() {
   const env = {};
-  for (const line of fs.readFileSync('.env.preclient.local', 'utf8').split(/\r?\n/)) { const m = line.match(/^([A-Z0-9_]+)=(.*)$/); if (m) env[m[1]] = m[2].replace(/^"|"$/g, ''); }
-  return env;
+  for (const line of (fs.existsSync('.env.preclient.local') ? fs.readFileSync('.env.preclient.local', 'utf8') : '').split(/\r?\n/)) { const m = line.match(/^([A-Z0-9_]+)=(.*)$/); if (m) env[m[1]] = m[2].replace(/^"|"$/g, ''); }
+  return { ...env, ...process.env };
 }
+export function protectionHeaders() { return process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET } : {}; }
 /** Logs in through the real endpoint; returns the cookie string. The session is revoked by `logout`. */
 export async function login(origin) {
   const env = loadEnv();
-  const r = await fetch(origin + '/api/auth', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: env.GG_ACCESS_PASSWORD }) });
+  const r = await fetch(origin + '/api/auth', { method: 'POST', headers: { ...protectionHeaders(), Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: env.GG_ACCESS_PASSWORD }) });
   if (r.status !== 200) throw new Error('login ' + r.status);
   return r.headers.get('set-cookie').split(';')[0];
 }
-export async function logout(origin, cookie) { await fetch(origin + '/api/auth', { method: 'DELETE', headers: { Origin: origin, Cookie: cookie } }); }
+export async function logout(origin, cookie) { await fetch(origin + '/api/auth', { method: 'DELETE', headers: { ...protectionHeaders(), Origin: origin, Cookie: cookie } }); }
 export const cookieParts = cookie => { const [name, ...v] = cookie.split('='); return { name, value: v.join('=') }; };
 /** Local env has no valid Instantly key; serve the newest saved snapshot as the "live" block (test harness only). */
 export async function mockEmail(context, origin, cookie) {
@@ -45,7 +46,7 @@ export async function mockWrites(context) {
       const slug = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop());
       const patch = route.request().postDataJSON();
       overrides.set(slug, { ...overrides.get(slug), ...patch }); calls.push({ slug, patch });
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ lead: { ...patch, version: 'mock-version' } }) });
     } catch { /* page closed */ }
   });
   return { overrides, calls };

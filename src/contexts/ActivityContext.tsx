@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { navigateSession } from "@/lib/session-navigation";
-import { SYNC_INTERVAL_MIN, type ActivityResponse } from "@/lib/activity";
+import { STALE_AFTER_MIN, SYNC_INTERVAL_MIN, type ActivityResponse } from "@/lib/activity";
 
 type ActivityState = {
   data: ActivityResponse | null;
@@ -25,6 +25,7 @@ export function ActivityProvider({ children, initial = null }: { children: React
   const [fetchedAt, setFetchedAt] = useState<number | null>(initial ? Date.parse(initial.generatedAt) : null);
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [clock, setClock] = useState(() => Date.now());
   const controller = useRef<AbortController | null>(null);
   const inflight = useRef<Promise<void> | null>(null);
   const lastNudge = useRef(0);
@@ -41,7 +42,9 @@ export function ActivityProvider({ children, initial = null }: { children: React
       // Behind schedule: ask the server to sync (it ignores the request if a good run is under 14 minutes old).
       if (nudge && Date.now() - okAt > SYNC_INTERVAL_MIN * 60_000 && Date.now() - lastNudge.current > 5 * 60_000) {
         lastNudge.current = Date.now();
-        await fetch("/api/sync", { method: "POST", signal: controller.current?.signal });
+        const sync = await fetch("/api/sync", { method: "POST", signal: controller.current?.signal });
+        const outcome = await sync.json();
+        if (!sync.ok || outcome.ok !== true) throw new Error("The latest sync could not finish. Previous data may be out of date.");
         await read(false);
       }
     };
@@ -55,8 +58,13 @@ export function ActivityProvider({ children, initial = null }: { children: React
 
   const syncNow = useCallback(async () => {
     setSyncing(true);
-    try { await fetch("/api/sync?manual=1", { method: "POST" }); await refresh(); }
-    catch { /* the next refresh shows the real state */ }
+    try {
+      const response = await fetch("/api/sync?manual=1", { method: "POST", signal: controller.current?.signal });
+      const outcome = await response.json();
+      if (!response.ok || outcome.ok !== true) throw new Error("The latest sync could not finish. Previous data may be out of date.");
+      await refresh();
+    }
+    catch (e) { if (!controller.current?.signal.aborted) setError(e instanceof Error ? e.message : "Sync could not finish."); }
     finally { setSyncing(false); }
   }, [refresh]);
 
@@ -68,12 +76,23 @@ export function ActivityProvider({ children, initial = null }: { children: React
     window.addEventListener("beforeunload", cancel);
     const initialRead = setTimeout(() => void refresh(), 0);
     const timer = setInterval(() => { if (!document.hidden) void refresh(); }, 60000);
+    const age = setInterval(() => setClock(Date.now()),15000);
+    const offline = () => setError("You are offline. The action queue may be out of date.");
+    window.addEventListener("offline",offline);
+    window.addEventListener("online",refresh);
     const visible = () => { if (!document.hidden) void refresh(); };
     document.addEventListener("visibilitychange", visible);
-    return () => { abort.abort(); clearTimeout(initialRead); clearInterval(timer); document.removeEventListener("visibilitychange", visible); window.removeEventListener("pagehide", cancel); window.removeEventListener("beforeunload", cancel); };
+    return () => { abort.abort(); clearTimeout(initialRead); clearInterval(timer); clearInterval(age); document.removeEventListener("visibilitychange", visible); window.removeEventListener("offline",offline); window.removeEventListener("online",refresh); window.removeEventListener("pagehide", cancel); window.removeEventListener("beforeunload", cancel); };
   }, [refresh]);
 
-  const value = useMemo<ActivityState>(() => ({ data, fetchedAt, error, syncing, refresh, syncNow }), [data, fetchedAt, error, syncing, refresh, syncNow]);
+  const visibleData = useMemo(() => {
+    if (!data) return null;
+    const sync = {...data.sync};
+    if (error) { sync.state="failing"; sync.lastError=error; }
+    else if(sync.state==="ok" && (!sync.lastOkAt || clock-Date.parse(sync.lastOkAt)>STALE_AFTER_MIN*60000)) sync.state="stale";
+    return {...data,sync};
+  },[data,error,clock]);
+  const value = useMemo<ActivityState>(() => ({ data:visibleData, fetchedAt, error, syncing, refresh, syncNow }), [visibleData, fetchedAt, error, syncing, refresh, syncNow]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useActivity() {

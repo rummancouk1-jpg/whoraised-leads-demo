@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { navigateSession } from "@/lib/session-navigation";
 import { useUIState } from "@/contexts/UIContext";
+import { useToast } from "@/contexts/ToastContext";
 import { BoardIcon, HomeIcon, LogoutIcon, MailIcon, MoonIcon, SearchIcon, SunIcon, SystemIcon } from "@/components/ui/Icons";
 
 const NAV_ITEMS = [
@@ -28,9 +29,13 @@ export function AppNav() {
   const pathname = usePathname();
   const { setPalette, theme, cycleTheme } = useUIState();
   const shortcut = useShortcutLabel();
+  const {toast} = useToast();
   const themeName = theme === "system" ? "System" : theme === "light" ? "Light" : "Dark";
   const ThemeIcon = theme === "system" ? SystemIcon : theme === "light" ? SunIcon : MoonIcon;
-  const logout = async () => { const response = await fetch("/api/auth", { method: "DELETE" }); if (response.ok) navigateSession("/login"); };
+  const logout = async () => {
+    try { const response = await fetch("/api/auth", { method: "DELETE",signal:AbortSignal.timeout(5000) }); if (!response.ok) throw new Error("Logout failed"); navigateSession("/login"); }
+    catch { toast({message:"Couldn't log out. Reconnect and retry to end this session.",tone:"error",actionLabel:"Retry logout",onAction:()=>void logout(),duration:12000}); }
+  };
 
   return (
     <>

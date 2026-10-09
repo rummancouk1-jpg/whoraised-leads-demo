@@ -1,10 +1,26 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
+import { AsyncLocalStorage } from "node:async_hooks";
+const deadline = new AsyncLocalStorage<AbortSignal>();
+export async function withDatabaseDeadline<T>(work: () => Promise<T>, ms = 2500): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error("Database read timed out.")), ms);
+  try { return await deadline.run(controller.signal, work); } finally { clearTimeout(timer); }
+}
 
 export function database() {
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("Shared database is not configured.");
-  return neon(url);
+  if (!url) throw new Error("Workspace storage is not configured.");
+  if (process.env.VERCEL_ENV === "preview" || process.env.GG_DB_ENVIRONMENT === "preview") {
+    const host = new URL(url).hostname;
+    if (!process.env.GG_EXPECTED_DB_HOST || !process.env.GG_PRODUCTION_DB_HOST || host !== process.env.GG_EXPECTED_DB_HOST || host.replace("-pooler", "") === process.env.GG_PRODUCTION_DB_HOST.replace("-pooler", "")) throw new Error("Preview database isolation is not configured.");
+  }
+  // A client can survive several provider pages. Start the timeout for each fetch,
+  // rather than expiring the client while it waits for Instantly.
+  return neon(url, { fetchOptions: { get signal() {
+    const signal = deadline.getStore();
+    return signal ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000);
+  } } });
 }
 let ready: Promise<unknown> | undefined;
 export function initializeDatabase() {
@@ -30,6 +46,18 @@ export function initializeDatabase() {
       sql`CREATE INDEX IF NOT EXISTS gg_signups_slug_idx ON gg_signups (slug)`,
       sql`CREATE TABLE IF NOT EXISTS gg_errors (fingerprint text PRIMARY KEY, name text NOT NULL, surface text NOT NULL, route text NOT NULL, release_sha text NOT NULL, message text NOT NULL, count integer NOT NULL DEFAULT 1, first_seen timestamptz NOT NULL DEFAULT now(), last_seen timestamptz NOT NULL DEFAULT now())`,
       sql`UPDATE gg_clicks SET is_test=true WHERE NOT is_test AND (is_example OR slug ~* '^(example|test)-')`,
+      sql`CREATE TABLE IF NOT EXISTS gg_job_leases (key text PRIMARY KEY, owner text NOT NULL, lease_until timestamptz NOT NULL)`,
+      sql`CREATE TABLE IF NOT EXISTS gg_sync_checkpoints (campaign text PRIMARY KEY, state jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`,
+      sql`CREATE TABLE IF NOT EXISTS gg_request_limits (key text PRIMARY KEY, used integer NOT NULL, reset_at timestamptz NOT NULL)`,
+      sql`CREATE TABLE IF NOT EXISTS gg_digest_deliveries (week text PRIMARY KEY, owner text NOT NULL, status text NOT NULL, claimed_at timestamptz NOT NULL DEFAULT now(), sent_at timestamptz)`,
+      sql`CREATE TABLE IF NOT EXISTS gg_error_occurrences (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, fingerprint text NOT NULL, occurred_at timestamptz NOT NULL DEFAULT now())`,
+      sql`CREATE INDEX IF NOT EXISTS gg_error_occurrences_time_idx ON gg_error_occurrences (occurred_at, fingerprint)`,
+      sql`ALTER TABLE gg_lead_stats ADD COLUMN IF NOT EXISTS unknown_fields jsonb NOT NULL DEFAULT '[]'::jsonb`,
+      sql`ALTER TABLE gg_clicks ADD COLUMN IF NOT EXISTS click_token text`,
+      sql`CREATE UNIQUE INDEX IF NOT EXISTS gg_clicks_token_idx ON gg_clicks (click_token)`,
+      sql`ALTER TABLE gg_signups ADD COLUMN IF NOT EXISTS click_id bigint REFERENCES gg_clicks(id)`,
+      sql`ALTER TABLE gg_signups ADD COLUMN IF NOT EXISTS webhook_nonce text`,
+      sql`CREATE UNIQUE INDEX IF NOT EXISTS gg_signups_nonce_idx ON gg_signups (webhook_nonce)`,
     ]).catch(e => { ready = undefined; throw e; });
   }
   return ready;
