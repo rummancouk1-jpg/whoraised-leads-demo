@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:postgres": "node scripts/r2/postgres-contracts.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

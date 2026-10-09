@@ -7,7 +7,7 @@ import { useOutreach } from "@/contexts/OutreachContext";
 import { useEmail } from "@/contexts/EmailContext";
 import { useUIState } from "@/contexts/UIContext";
 import { isExample } from "@/lib/outreach";
-import { navigateSession } from "@/lib/session-navigation";
+import { useLogout } from "@/hooks/useLogout";
 import { ArrowIcon, SearchIcon } from "@/components/ui/Icons";
 
 type Item = { id: string; group: string; label: string; hint?: string; keywords?: string; run: () => void; icon?: ReactNode };
@@ -29,6 +29,7 @@ export function CommandPalette() {
 }
 
 function PaletteDialog({ onClose }: { onClose: () => void }) {
+  const logout = useLogout();
   const ui = useUIState();
   const { leads, undoLast } = useOutreach();
   const { refresh } = useEmail();
@@ -65,10 +66,10 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
       ...ui.views.map<Item>(v => ({ id: `view-${v.id}`, group: "Views", label: `View: ${v.name}`, keywords: "filter saved", run: close(() => { ui.applyView(v.id); ui.go("/"); }) })),
     ];
     if (ui.installable) list.push({ id: "install", group: "Actions", label: "Install app", keywords: "home screen pwa", run: close(() => void ui.install()) });
-    list.push({ id: "logout", group: "Account", label: "Log out", keywords: "sign out", run: close(async () => { const r = await fetch("/api/auth", { method: "DELETE" }); if (r.ok) navigateSession("/login"); }) });
+    list.push({ id: "logout", group: "Account", label: "Log out", keywords: "sign out", run: close(() => void logout()) });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui.views, ui.installable, refresh, undoLast]);
+  }, [ui.views, ui.installable, refresh, undoLast, logout]);
 
   const items = useMemo<Item[]>(() => {
     const q = query.trim();

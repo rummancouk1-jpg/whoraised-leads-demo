@@ -43,6 +43,9 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
       const mapped = mapInstantly(leads, remote, emails);
       const slugs = mapped.stats.map(s => s.slug);
       const queries = [
+        // Hold the lease row through the entire commit. An expired lease cannot
+        // be reassigned between the stats, events and successful-run writes.
+        sql`SELECT owner FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now() FOR UPDATE`,
         sql`DELETE FROM gg_lead_stats WHERE NOT (slug = ANY(${slugs}::text[])) AND EXISTS (SELECT 1 FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now())`,
         sql`INSERT INTO gg_lead_stats(slug,email,sent,opened,replied,clicked,bounced,unsubscribed,interest,last_outbound_at,last_inbound_at,last_open_at,last_click_at,synced_at,unknown_fields)
           SELECT x.slug,x.email,x.sent,coalesce(x.opened,0),x.replied,coalesce(x.clicked,0),x.bounced,x.unsubscribed,x.interest,x.last_outbound_at::timestamptz,x.last_inbound_at::timestamptz,x.last_open_at::timestamptz,x.last_click_at::timestamptz,now(),to_jsonb(array_remove(ARRAY[CASE WHEN x.opened IS NULL THEN 'opened' END,CASE WHEN x.clicked IS NULL THEN 'clicked' END],NULL))

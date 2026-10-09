@@ -26,6 +26,14 @@ async function check(name,fn){try{await fn();results.push({name,pass:true});cons
  await check('distributed budget atomically allows only five of twenty requests',async()=>{
   const permitted=await Promise.all(Array.from({length:20},()=>limits.takeBudget(prefix,5,60)));assert.equal(permitted.filter(Boolean).length,5);
  });
+ await check('commit holds the lease row until stats/events transaction completes, even across expiry',async()=>{
+  await lease.releaseLease(prefix,(await sql`SELECT owner FROM gg_job_leases WHERE key=${prefix}`)[0].owner);
+  const owner=await lease.acquireLease(prefix,2);
+  const transaction=sql.transaction([sql`SELECT owner FROM gg_job_leases WHERE key=${prefix} AND owner=${owner} AND lease_until>now() FOR UPDATE`,sql`SELECT pg_sleep(4)`]);
+  await new Promise(resolve=>setTimeout(resolve,2500));
+  const start=Date.now();const successor=await lease.acquireLease(prefix);
+  await transaction;assert(successor);assert(Date.now()-start>=900,'successor must wait for the commit lock');
+ });
  await check('failed stats/event transaction rolls back every preceding write',async()=>{
   await assert.rejects(sql.transaction([sql`INSERT INTO gg_lead_events(ref,slug,kind,at) VALUES (${prefix},${prefix},'sent',now())`,sql`SELECT 1/0`]));
   assert.equal((await sql`SELECT ref FROM gg_lead_events WHERE ref=${prefix}`).length,0);

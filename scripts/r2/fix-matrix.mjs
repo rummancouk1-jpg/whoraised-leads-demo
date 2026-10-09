@@ -1,4 +1,4 @@
-// Independent UI audit against the real local build behind independent-readonly.cjs.
+// UI acceptance audit against an immutable, isolated preview deployment.
 // Activity fixtures exercise otherwise empty R2 states; all writes are intercepted.
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -19,11 +19,12 @@ for(const [engine,launch] of browsers){
   const context=await browser.newContext({viewport:{width,height:width===390?844:1000},hasTouch:width<900,colorScheme:theme,reducedMotion:motion,serviceWorkers:'block',extraHTTPHeaders:protectionHeaders()});
   await context.addCookies([{...parts,url:origin,httpOnly:true,secure:true,sameSite:'Lax'}]);
   await context.addInitScript(t=>localStorage.setItem('gg-theme',JSON.stringify(t)),theme);
-  let fx=activityFixture('busy',leads);const timeline=fx.timeline;
+  let fx=activityFixture('busy',leads);const timeline=fx.timeline;let timelineFailed=false,digestFailed=false;
   await context.route('**/api/activity',r=>{const body={...fx};delete body.timeline;return r.fulfill({json:body});});
   await context.route('**/api/sync**',r=>r.fulfill({json:{ran:false,ok:true}}));
   await context.route('**/api/errors',r=>r.fulfill({json:{ok:true}}));
-  await context.route(/\/api\/leads\/[^/?]+\/activity$/,r=>r.fulfill({json:timeline(decodeURIComponent(new URL(r.request().url()).pathname.split('/').at(-2)))}));
+  await context.route(/\/api\/leads\/[^/?]+\/activity$/,r=>timelineFailed?r.fulfill({status:503,json:{error:'fixture unavailable'}}):r.fulfill({json:timeline(decodeURIComponent(new URL(r.request().url()).pathname.split('/').at(-2)))}));
+  await context.route('**/api/digest',r=>digestFailed?r.fulfill({status:503,json:{error:'fixture unavailable'}}):r.continue());
   await context.route(/\/api\/leads(?:\/[^/?]+)?$/,r=>r.request().method()==='GET'?r.continue():r.abort('blockedbyclient'));
   const page=await context.newPage();page.setDefaultNavigationTimeout(60000);page.on('pageerror',e=>row.errors.push(e.message));
   async function check(label,fn){try{const detail=await fn();row.checks.push({label,pass:true,detail});}catch(e){row.checks.push({label,pass:false,error:e.message.slice(0,700)});}}
@@ -45,9 +46,16 @@ for(const [engine,launch] of browsers){
     await inspect('activity timeline targets and overflow','.gg-timeline');await capture('timeline','.gg-timeline');await axe('timeline drawer axe WCAG');await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);await expect(button).toBeFocused();return 'Enter opens, Tab wraps, Escape closes, focus restored';
    });
    await check('queue tap on relative time opens drawer',async()=>{await page.locator('.gg-needs-item').first().locator('time').click();await expect(page.getByRole('dialog')).toBeVisible();await page.keyboard.press('Escape');return 'opens';});
+   await check('timeline failure retry and restored trigger focus',async()=>{
+    timelineFailed=true;const trigger=page.locator('.gg-needs-item').first();await trigger.click();await expect(page.getByRole('button',{name:'Retry lead activity'})).toBeVisible();await inspect('timeline failure targets','[role=dialog]');await axe('timeline failure axe WCAG');
+    timelineFailed=false;await page.getByRole('button',{name:'Retry lead activity'}).click();await expect(page.locator('.gg-timeline').first()).toBeVisible();await page.keyboard.press('Escape');await expect(trigger).toBeFocused();return '503, visible retry, recovered timeline, exact opener';
+   });
+   await check('ordinary dialog Tab wrap and trigger focus restoration',async()=>{
+    const trigger=page.getByRole('button',{name:'Export CSV',exact:true});await trigger.focus();await page.keyboard.press('Enter');const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();await page.keyboard.press('Shift+Tab');assert(await dialog.evaluate(el=>el.contains(document.activeElement)));await page.keyboard.press('Tab');assert(await dialog.evaluate(el=>el.contains(document.activeElement)));await axe('ordinary dialog axe WCAG');await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(trigger).toBeFocused();return 'keyboard opens, wraps, restores';
+   });
    for(const state of ['stale','failing']){fx=activityFixture(state,leads);await page.reload({waitUntil:'domcontentloaded'});await expect(page.locator('.gg-sync-banner')).toBeVisible();await inspect(state+' warning targets and overflow','.gg-sync-banner');await capture(state,'.gg-sync-banner');await axe(state+' warning axe WCAG');await check(state+' honest empty queue',async()=>{await expect(page.locator('.gg-needs-empty')).toContainText("Can't confirm");return await page.locator('.gg-needs-empty').innerText();});}
    await check('home axe WCAG',async()=>{await page.evaluate(()=>scrollTo(0,0));const r=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();assert.equal(r.violations.length,0,JSON.stringify(r.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))));return 0;});
-   await page.goto(origin+'/email',{waitUntil:'domcontentloaded'});await expect(page.locator('.gg-digest')).toBeVisible({timeout:20000});await inspect('digest preview targets, overflow, truncation','section:has(#digest-title)');await capture('digest','section:has(#digest-title)');
+   digestFailed=true;await page.goto(origin+'/email',{waitUntil:'domcontentloaded'});await expect(page.getByRole('button',{name:'Retry digest preview'})).toBeVisible();await inspect('digest failure retry targets','section:has(#digest-title)');await axe('digest failure axe WCAG');digestFailed=false;await page.getByRole('button',{name:'Retry digest preview'}).click();await expect(page.locator('.gg-digest')).toBeVisible({timeout:20000});await inspect('digest preview targets, overflow, truncation','section:has(#digest-title)');await capture('digest','section:has(#digest-title)');
    await check('digest link keyboard reachable',async()=>{const link=page.getByRole('link',{name:'Open the exact email in a new tab'});await link.focus();await expect(link).toBeFocused();assert.equal(await link.getAttribute('href'),'/api/digest?format=html');return 'focusable exact-email link';});
    await check('email axe WCAG',async()=>{await page.evaluate(()=>scrollTo(0,0));const r=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();assert.equal(r.violations.length,0,JSON.stringify(r.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))));return 0;});
    await check('palette keyboard trap and trigger focus restoration',async()=>{const trigger=page.getByRole('button',{name:/search|command/i}).first();await trigger.focus();await trigger.click();await expect(page.getByRole('dialog')).toBeVisible();await inspect('palette hit targets','[role=dialog]');await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);await expect(trigger).toBeFocused();return 'focus restored';});
@@ -60,4 +68,4 @@ for(const [engine,launch] of browsers){
  }
  await browser.close();
 }
-const summary={runs:rows.length,checks:rows.flatMap(r=>r.checks??[]).length,failed:rows.flatMap(r=>r.checks??[]).filter(c=>!c.pass).length,runtimeErrors:rows.flatMap(r=>r.errors??[]).length};await fs.writeFile(dir+'/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary));if(summary.runs!==(selected?.length??36)||summary.failed||summary.runtimeErrors||rows.some(r=>r.unavailable))process.exitCode=1;
+const summary={at:new Date().toISOString(),origin,runs:rows.length,checks:rows.flatMap(r=>r.checks??[]).length,failed:rows.flatMap(r=>r.checks??[]).filter(c=>!c.pass).length,runtimeErrors:rows.flatMap(r=>r.errors??[]).length,axeScans:rows.flatMap(r=>r.checks??[]).filter(c=>/axe/.test(c.label)).length};await fs.writeFile(dir+'/matrix.json',JSON.stringify(rows,null,2));await fs.writeFile(dir+'/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary));if(summary.runs!==(selected?.length??36)||summary.failed||summary.runtimeErrors||rows.some(r=>r.unavailable))process.exitCode=1;

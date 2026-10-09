@@ -30,6 +30,7 @@ function harness(now = NOW) {
     }
     if (text.startsWith('INSERT INTO gg_job_leases')) { if(state.leases.has(p[0])) return []; state.leases.set(p[0],p[1]); return [{owner:p[1]}]; }
     if (text.startsWith('DELETE FROM gg_job_leases')) { if(state.leases.get(p[0])===p[1]) state.leases.delete(p[0]); return []; }
+    if (text.startsWith('SELECT owner FROM gg_job_leases')) return state.leases.get('instantly-sync')===p[0]?[{owner:p[0]}]:[];
     // Rate budgets are tested against real Postgres separately. This replay accelerates several days into one instant.
     if (text.startsWith('INSERT INTO gg_request_limits')) return [{used:1}];
     if (text.startsWith('SELECT state FROM gg_sync_checkpoints')) return state.checkpoints.has(p[0])?[{state:state.checkpoints.get(p[0])}]:[];

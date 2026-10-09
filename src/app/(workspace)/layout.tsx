@@ -10,15 +10,16 @@ import { ActivityProvider } from "@/contexts/ActivityContext";
 import { ErrorReporter } from "@/components/shell/ErrorReporter";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { UIProvider } from "@/contexts/UIContext";
+import { TimeProvider } from "@/components/ui/RelTime";
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   if (!await authenticated()) redirect("/login");
   const initial = await getInitialStatus();
-  return <ToastProvider><OutreachProvider initialSummary={initial.summary} initialLeads={initial.leads}><EmailProvider initialSnapshot={initial.snapshot}><ActivityProvider initial={initial.activity}><UIProvider>
+  return <TimeProvider initialNow={Date.now()}><ToastProvider><OutreachProvider initialSummary={initial.summary} initialLeads={initial.leads}><EmailProvider initialSnapshot={initial.snapshot}><ActivityProvider initial={initial.activity}><UIProvider>
     <a className="gg-skip" href="#main">Skip to content</a>
     <AppNav />
     {children}
     <UIHost />
     <PwaRegister />
     <ErrorReporter />
-  </UIProvider></ActivityProvider></EmailProvider></OutreachProvider></ToastProvider>;
+  </UIProvider></ActivityProvider></EmailProvider></OutreachProvider></ToastProvider></TimeProvider>;
 }

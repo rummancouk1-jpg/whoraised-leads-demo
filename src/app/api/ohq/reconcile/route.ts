@@ -5,7 +5,7 @@ import { api, records } from "@/lib/server/instantly";
 import { reconcile, type SourceView } from "@/lib/reconcile";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 /**
  * On-demand reconciliation (not part of the 3-second Watch poll): the raw Instantly read against the model the UI renders
  * and what the per-lead sync stored. Bearer-only, counts-only (inboxes are numbered, never named).

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { exactTime, parseTime, relativeTime, type TimeInput } from "@/lib/time";
 
 const listeners = new Set<() => void>();
@@ -11,8 +11,12 @@ function subscribe(listener: () => void) {
   return () => { listeners.delete(listener); if (!listeners.size && interval) { clearInterval(interval); interval = undefined; } };
 }
 /** A shared 30-second clock so every relative time on screen stays current without one timer each. */
-// The server snapshot is 0 so server-rendered markup never bakes in a stale "x minutes ago"; the client replaces it at hydration.
-export function useNow() { return useSyncExternalStore(subscribe, () => tick, () => 0); }
+const InitialClock = createContext(0);
+/** Serialize the request clock so the first HTML and hydration have the same, accurate relative text. */
+export function TimeProvider({ initialNow, children }: { initialNow: number; children: ReactNode }) {
+  return <InitialClock.Provider value={initialNow}>{children}</InitialClock.Provider>;
+}
+export function useNow() { const initial = useContext(InitialClock); return useSyncExternalStore(subscribe, () => tick, () => initial); }
 
 /**
  * "4 minutes ago" with the exact time on hover, keyboard focus, tap, or a long press on touch screens.
@@ -20,6 +24,7 @@ export function useNow() { return useSyncExternalStore(subscribe, () => tick, ()
  */
 export function RelTime({ value, prefix = "", fallback = "—", plain = false }: { value: TimeInput | null | undefined; prefix?: string; fallback?: string; plain?: boolean }) {
   const now = useNow();
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   const [open, setOpen] = useState(false);
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hide = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,7 +33,7 @@ export function RelTime({ value, prefix = "", fallback = "—", plain = false }:
   if (!parsed) return <span>{fallback}</span>;
   // The server and viewer can have different time zones. Hydration must start
   // with the same text; local exact times appear with the shared client clock.
-  const exact = now === 0 ? "Exact time loads with the workspace" : exactTime(value);
+  const exact = !hydrated ? "Exact time loads with the workspace" : exactTime(value);
   const text = now === 0 ? "recently" : relativeTime(value, now);
   // Inside a button or link the time must not be interactive (a tap on it would swallow the click and nest focusable controls).
   if (plain) return <time dateTime={parsed.dateOnly ? String(value) : parsed.date.toISOString()}>{prefix}{text}<span className="gg-sr-only">, {exact}</span></time>;
