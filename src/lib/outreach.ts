@@ -25,7 +25,7 @@ export function fitScore(lead: Lead, weights: Weights = DEFAULT_WEIGHTS) {
   const reasons = (Object.keys(weights) as (keyof Weights)[]).map(key => ({ label: labels[key], points: total ? Math.round(factors[key] * weights[key] / total * 1000) / 10 : 0, maximum: total ? Math.round(weights[key] / total * 1000) / 10 : 0 }));
   return { score: Math.max(0, Math.min(100, Math.round(reasons.reduce((sum, r) => sum + r.points, 0)))), reasons };
 }
-export function generateDraft(lead: Lead, origin = "https://gg-tourney-hub.vercel.app") {
+export function generateDraft(lead: Lead, origin: string) {
   return `Hi ${lead.name} — we're running a free market-prediction tournament Oct 19–Nov 13. One daily pick, longest streak wins $1,000. Think your audience can beat you? We'd like to give you a creator entry and invite your community to compete against you: ${origin}/go/${encodeURIComponent(lead.tracked_slug)}`;
 }
 export function groupResults(leads: Lead[], groupBy: (lead: Lead) => string) {

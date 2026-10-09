@@ -1,4 +1,5 @@
 "use client";
+import { Anchor } from "@/components/ui/AccessibleLink";
 
 import { useEffect, useState } from "react";
 import { RelTime } from "@/components/ui/RelTime";
@@ -34,7 +35,7 @@ export function DigestPreview() {
         <p className="gg-muted">{m.needs.replies} to answer · {m.needs.followups} follow-ups due · {m.needs.bounces} bounces to fix</p>
         <p className="gg-fresh">Built <RelTime value={m.generatedAt} />. {m.freshness}</p>
       </article>
-      <p><a className="gg-link" href="/api/digest?format=html" target="_blank" rel="noreferrer">Open the exact email in a new tab</a></p>
+      <p><Anchor className="gg-link" href="/api/digest?format=html" target="_blank" rel="noreferrer">Open the exact email in a new tab</Anchor></p>
     </>}
   </section>;
 }

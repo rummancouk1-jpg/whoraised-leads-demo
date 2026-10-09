@@ -50,6 +50,7 @@ export function initializeDatabase() {
       sql`CREATE TABLE IF NOT EXISTS gg_sync_checkpoints (campaign text PRIMARY KEY, state jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`,
       sql`CREATE TABLE IF NOT EXISTS gg_request_limits (key text PRIMARY KEY, used integer NOT NULL, reset_at timestamptz NOT NULL)`,
       sql`CREATE TABLE IF NOT EXISTS gg_digest_deliveries (week text PRIMARY KEY, owner text NOT NULL, status text NOT NULL, claimed_at timestamptz NOT NULL DEFAULT now(), sent_at timestamptz)`,
+      sql`ALTER TABLE gg_digest_deliveries ADD COLUMN IF NOT EXISTS first_claimed_at timestamptz NOT NULL DEFAULT now()`,
       sql`CREATE TABLE IF NOT EXISTS gg_error_occurrences (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, fingerprint text NOT NULL, occurred_at timestamptz NOT NULL DEFAULT now())`,
       sql`CREATE INDEX IF NOT EXISTS gg_error_occurrences_time_idx ON gg_error_occurrences (occurred_at, fingerprint)`,
       sql`ALTER TABLE gg_lead_stats ADD COLUMN IF NOT EXISTS unknown_fields jsonb NOT NULL DEFAULT '[]'::jsonb`,

@@ -24,7 +24,7 @@ for (const path of ['/apple-touch-icon.png', '/sw.js', '/offline.html', '/splash
 const sw = await (await publicFetch('/sw.js')).text();
 check('service worker only ever answers navigations (network-first) and allow-listed static paths', () => {
   const respond = [...sw.matchAll(/respondWith/g)].length; assert.equal(respond, 2);
-  assert.ok(/request\.mode === "navigate"/.test(sw) && /fetch\(request\)\.catch/.test(sw)); assert.equal([...sw.matchAll(/cache\.put\(/g)].length,1);assert.match(sw,/if \(response\.ok && response\.type === "basic" && !response\.redirected && !response\.headers\.has\("set-cookie"\)\) await cache\.put\(request, response\.clone\(\)\)\.catch/);assert.ok(!/\/api\//.test(sw)); return 'respondWith: navigation + static allow-list; cache-write rejection handled';
+  assert.ok(/request\.mode === "navigate"/.test(sw) && /fetch\(request\)\.catch/.test(sw)); assert.equal([...sw.matchAll(/cache\.put\(/g)].length,1);assert.match(sw,/if \(!clearing && response\.ok && response\.type === "basic" && !response\.redirected && !response\.headers\.has\("set-cookie"\)\) await cache\.put\(request, response\.clone\(\)\)\.catch/);assert.ok(!/\/api\//.test(sw)); return 'respondWith: navigation + static allow-list; cache-write rejection handled';
 });
 const loginHtml = await (await publicFetch('/login')).text();
 check('iOS standalone tags, theme colours and launch images', () => {

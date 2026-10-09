@@ -14,7 +14,7 @@ import { TimeProvider } from "@/components/ui/RelTime";
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   if (!await authenticated()) redirect("/login");
   const initial = await getInitialStatus();
-  return <TimeProvider initialNow={Date.now()}><ToastProvider><OutreachProvider initialSummary={initial.summary} initialLeads={initial.leads}><EmailProvider initialSnapshot={initial.snapshot}><ActivityProvider initial={initial.activity}><UIProvider>
+  return <TimeProvider initialNow={initial.now}><ToastProvider><OutreachProvider initialSummary={initial.summary} initialLeads={initial.leads}><EmailProvider initialSnapshot={initial.snapshot}><ActivityProvider initial={initial.activity}><UIProvider>
     <a className="gg-skip" href="#main">Skip to content</a>
     <AppNav />
     {children}

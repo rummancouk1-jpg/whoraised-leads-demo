@@ -8,7 +8,7 @@ import type { ActivityResponse } from "@/lib/activity";
 import { withDatabaseDeadline } from "./db";
 import type { Lead } from "@/types/outreach";
 
-export type InitialStatus = { leads: Lead[] | null; summary: LeadSummary | null; snapshot: EmailMetrics | null; activity: ActivityResponse | null };
+export type InitialStatus = { now: number; leads: Lead[] | null; summary: LeadSummary | null; snapshot: EmailMetrics | null; activity: ActivityResponse | null };
 
 /**
  * What the first HTML needs to answer "where does the campaign stand?": lead counts from the database and the newest
@@ -20,6 +20,6 @@ export async function getInitialStatus(): Promise<InitialStatus> {
   // One lead read feeds both the counts and the action queue.
   const leadsRead = getLeads();
   const [leads, snapshot, activity] = await Promise.allSettled([leadsRead, latestSnapshot(), leadsRead.then(l => getActivity(l))]);
-  return { leads: leads.status === "fulfilled" ? leads.value : null, summary: leads.status === "fulfilled" ? summarizeLeads(leads.value) : null, snapshot: snapshot.status === "fulfilled" ? snapshot.value : null, activity: activity.status === "fulfilled" ? activity.value : null };
+  return { now: Date.now(), leads: leads.status === "fulfilled" ? leads.value : null, summary: leads.status === "fulfilled" ? summarizeLeads(leads.value) : null, snapshot: snapshot.status === "fulfilled" ? snapshot.value : null, activity: activity.status === "fulfilled" ? activity.value : null };
   });
 }

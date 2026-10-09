@@ -6,6 +6,7 @@
  * a static page with no data in it. Logging out deletes every cache and unregisters this worker.
  */
 const CACHE = "gg-static-v1";
+let clearing = false;
 const OFFLINE = "/offline.html";
 const STATIC = [/^\/_next\/static\//, /^\/icons\//, /^\/splash\//, /^\/icon\.svg$/, /^\/apple-touch-icon\.png$/, /^\/favicon\.ico$/];
 
@@ -16,7 +17,10 @@ self.addEventListener("activate", event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
 });
 self.addEventListener("message", event => {
-  if (event.data && event.data.type === "CLEAR") event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key)))));
+  if (event.data && event.data.type === "CLEAR") {
+    clearing = true;
+    event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key)))).finally(() => event.ports[0]?.postMessage({ cleared: true })));
+  }
 });
 self.addEventListener("fetch", event => {
   const request = event.request;
@@ -28,12 +32,13 @@ self.addEventListener("fetch", event => {
     return;
   }
   if (!STATIC.some(pattern => pattern.test(url.pathname)) || url.search.includes("_rsc")) return;
+  if (clearing) return;
   event.respondWith(caches.open(CACHE).then(async cache => {
     const hit = await cache.match(request);
     if (hit) return hit;
     const response = await fetch(request);
     // Only successful, non-redirected, cookie-free public files are stored.
-    if (response.ok && response.type === "basic" && !response.redirected && !response.headers.has("set-cookie")) await cache.put(request, response.clone()).catch(() => {});
+    if (!clearing && response.ok && response.type === "basic" && !response.redirected && !response.headers.has("set-cookie")) await cache.put(request, response.clone()).catch(() => {});
     return response;
   }));
 });

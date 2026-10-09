@@ -78,8 +78,9 @@ export async function sendDigest(): Promise<{ sent: boolean; reason?: string }> 
   const claim = await sql`INSERT INTO gg_digest_deliveries(week,owner,status) VALUES (${week},${owner},'sending')
     ON CONFLICT (week) DO UPDATE SET owner=EXCLUDED.owner, status='sending', claimed_at=now()
     WHERE gg_digest_deliveries.status <> 'sent' AND gg_digest_deliveries.claimed_at < now() - interval '10 minutes'
+      AND gg_digest_deliveries.first_claimed_at > now() - interval '23 hours'
     RETURNING owner`;
-  if (!claim.length) return { sent: false, reason: "Already sent or sending this week." };
+  if (!claim.length) return { sent: false, reason: "Already sent, sending, or awaiting delivery confirmation this week." };
   try {
   const model = await buildDigest();
   const { html, text } = renderDigest(model);
@@ -95,7 +96,8 @@ export async function sendDigest(): Promise<{ sent: boolean; reason?: string }> 
   ]);
   return { sent: true };
   } catch (error) {
-    // Retain the claim for ten minutes after ambiguous timeouts; retries reuse the provider key.
+    // Retry only within the provider's 24-hour idempotency window (with a one-hour margin).
+    // An older ambiguous delivery needs reconciliation, never another automatic send.
     await sql`UPDATE gg_digest_deliveries SET status='failed' WHERE week=${week} AND owner=${owner}`;
     throw error;
   }

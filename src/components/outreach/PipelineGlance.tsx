@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { AppLink as Link } from "@/components/ui/AccessibleLink";
 import { useOutreach } from "@/contexts/OutreachContext";
 import { useUIState } from "@/contexts/UIContext";
 import { Skeleton } from "@/components/ui/Skeleton";
