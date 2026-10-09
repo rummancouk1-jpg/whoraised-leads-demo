@@ -447,7 +447,7 @@ main:focus { outline: none; }
 /* ───────────────────────── Accessibility preferences ───────────────────────── */
 :root { --hit-target: 44px; }
 /* Shared across viewport, input modality and component. Plain times nested in buttons stay plain. */
-:is(button, a[href], input:not([type="checkbox"]):not([type="radio"]), select, textarea, summary, [tabindex="0"]) { min-width: var(--hit-target) !important; min-height: var(--hit-target) !important; }
+:is(button, a[href], input:not([type="checkbox"]):not([type="radio"]), select, textarea, summary, [tabindex="0"], [role="option"], [role="tab"]) { min-width: var(--hit-target) !important; min-height: var(--hit-target) !important; }
 a[href], time[tabindex="0"] { display: inline-flex; align-items: center; }
 label:has(input[type="checkbox"]), label:has(input[type="radio"]) { min-height: var(--hit-target); display: inline-flex; align-items: center; }
 @media (prefers-reduced-transparency: reduce) {

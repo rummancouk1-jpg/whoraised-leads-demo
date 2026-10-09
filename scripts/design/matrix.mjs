@@ -46,13 +46,13 @@ for (const scheme of ['light', 'dark']) for (const motion of ['normal', 'reduce'
     await p.waitForTimeout(250);
     const file = `${prefix}-${state}.png`;
     await p.screenshot({ path: `${out}/${file}`, animations: 'disabled', scale: 'css' });
-    const checks = await p.evaluate(({ touch, reduce, width }) => {
+    const checks = await p.evaluate(({ reduce }) => {
       const faults = [], targets = [];
       if (document.documentElement.scrollWidth > innerWidth + 1) faults.push('document horizontal overflow');
       for (const e of document.querySelectorAll('nav a, nav button, .gg-topbar button, [role=dialog]')) { const r = e.getBoundingClientRect(); if (r.width && (r.left < -1 || r.right > innerWidth + 1)) faults.push('clipped: ' + (e.textContent || e.getAttribute('aria-label') || '').trim().slice(0, 50)); }
       if (reduce) { if (document.getAnimations().length) faults.push('running animations under reduced motion: ' + document.getAnimations().map(a => a.animationName || a.transitionProperty).join(',')); for (const e of document.querySelectorAll('body *')) { const s = getComputedStyle(e); if (s.animationName !== 'none' || s.transitionDuration.split(',').some(v => parseFloat(v) > 0)) { faults.push('motion not reduced: ' + e.className); break; } } }
-      if (touch || width <= 900) {
-        const sel = 'button, a[href], select, textarea, input:not([type=hidden]), summary, [role=option], [role=tab]';
+      {
+        const sel = 'button, a[href], select, textarea, input:not([type=hidden]), summary, [role=option], [role=tab], [tabindex="0"]';
         const dialog = document.querySelector('[role=dialog][aria-modal=true]');
         for (const e of document.querySelectorAll(sel)) {
           if (dialog && !dialog.contains(e) && !e.closest('[data-modal-safe]')) continue;

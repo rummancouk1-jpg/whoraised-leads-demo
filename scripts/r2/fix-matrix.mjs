@@ -8,7 +8,7 @@ import {login,logout,cookieParts,activityFixture,protectionHeaders} from '../des
 const origin=process.argv[2]||'http://localhost:3104',dir=process.env.EVIDENCE_ROOT||'evidence/r2-fix/matrix';
 await fs.mkdir(dir+'/screenshots',{recursive:true});
 const leads=JSON.parse(await fs.readFile('evidence/r2-independent/leads.json','utf8'));
-const rows=[];const browsers=[['chrome',()=>chromium.launch({channel:'chrome'})],['edge',()=>chromium.launch({channel:'msedge'})],['webkit',()=>webkit.launch()]];
+const rows=[];const browsers=[['chrome',()=>chromium.launch({channel:'chrome'})],['edge',()=>chromium.launch({channel:'msedge'})],['webkit',()=>webkit.launch()]].filter(([engine])=>!process.env.MATRIX_ENGINE||engine===process.env.MATRIX_ENGINE);
 const selected=process.env.MATRIX_KEYS?.split(',');
 for(const [engine,launch] of browsers){
  let browser;try{browser=await launch();}catch(e){rows.push({engine,unavailable:e.message});continue;}
@@ -41,7 +41,7 @@ for(const [engine,launch] of browsers){
    assert.equal(seen.size,wanted,'Some controls unreachable by actual Tab');assert.deepEqual(order,[...order].sort((a,b)=>a-b));return {targets:wanted,order};
   }
   async function inspect(label,selector){await check(label,async()=>page.locator(selector).first().evaluate(root=>{
-   const rect=root.getBoundingClientRect();const controls=[...root.querySelectorAll('button,a[href],input,select,textarea,[tabindex="0"]')].filter(el=>el.getClientRects().length);
+   const rect=root.getBoundingClientRect();const controls=[...root.querySelectorAll('button,a[href],input,select,textarea,summary,[tabindex="0"],[role="option"],[role="tab"]')].filter(el=>el.getClientRects().length);
    const small=controls.map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,text:(el.innerText||el.getAttribute('aria-label')||'').slice(0,90),w:r.width,h:r.height};}).filter(r=>r.w<43.9||r.h<43.9);
    const clipped=[...root.querySelectorAll('*')].filter(el=>el.getClientRects().length&&el.scrollWidth>el.clientWidth+2&&['hidden','clip'].includes(getComputedStyle(el).overflowX)).map(el=>({tag:el.tagName,text:el.textContent.slice(0,100)}));
    return {w:rect.width,pageOverflow:document.documentElement.scrollWidth-innerWidth,small,clipped};
@@ -80,4 +80,4 @@ for(const [engine,launch] of browsers){
  }
  await browser.close();
 }
-const summary={at:new Date().toISOString(),origin,runs:rows.length,checks:rows.flatMap(r=>r.checks??[]).length,failed:rows.flatMap(r=>r.checks??[]).filter(c=>!c.pass).length,runtimeErrors:rows.flatMap(r=>r.errors??[]).length,axeScans:rows.flatMap(r=>r.checks??[]).filter(c=>/axe/.test(c.label)).length};await fs.writeFile(dir+'/matrix.json',JSON.stringify(rows,null,2));await fs.writeFile(dir+'/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary));if(summary.runs!==(selected?.length??36)||summary.failed||summary.runtimeErrors||rows.some(r=>r.unavailable))process.exitCode=1;
+const summary={at:new Date().toISOString(),origin,runs:rows.length,checks:rows.flatMap(r=>r.checks??[]).length,failed:rows.flatMap(r=>r.checks??[]).filter(c=>!c.pass).length,runtimeErrors:rows.flatMap(r=>r.errors??[]).length,axeScans:rows.flatMap(r=>r.checks??[]).filter(c=>/axe/.test(c.label)).length};await fs.writeFile(dir+'/matrix.json',JSON.stringify(rows,null,2));await fs.writeFile(dir+'/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary));if(summary.runs!==(selected?.length??(process.env.MATRIX_ENGINE?12:36))||summary.failed||summary.runtimeErrors||rows.some(r=>r.unavailable))process.exitCode=1;

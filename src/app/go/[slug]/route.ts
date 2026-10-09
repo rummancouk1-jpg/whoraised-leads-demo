@@ -18,7 +18,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     try {
       if (!await takeBudget(requestIdentity(request,"creator-link"),60,60)) return new Response("Please retry this link shortly.",{status:429,headers:{...headers,"Retry-After":"60"}});
       token = issueClickToken(slug,test);
-      if (!await recordClick(slug, agent, request.headers.get("referer") || "", request.url, marker,token)) return new Response("Link not found.",{status:404,headers});
+      if (!await recordClick(slug, agent, request.headers.get("referer") || "", request.url, test ? "1" : marker,token)) return new Response("Link not found.",{status:404,headers});
     }
     catch { console.error("Click storage unavailable"); return new Response("Please retry this link shortly.", { status: 503, headers }); }
   }
