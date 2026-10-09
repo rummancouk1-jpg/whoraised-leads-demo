@@ -161,12 +161,13 @@ async function replay(){
      return new Request('https://preview.invalid/api/attribution/signup',{method:'POST',headers:{Authorization:'Bearer audit-webhook-key','Content-Type':'application/json','x-gg-timestamp':timestamp,'x-gg-nonce':nonce,'x-gg-signature':signature},body});
    };
    assert.equal((await (await post(request('signup-1'))).json()).recorded,true);assert.equal((await (await post(request('signup-1'))).json()).recorded,false);assert.equal((await (await post(request('signup-2','unknown'))).json()).recorded,false);assert.equal(h.state.signups.size,1);
+   assert.equal((await h.load('src/lib/server/activity.ts').loadAttribution(h.leads)).signups,1);
  });
  await check('test=1 redirect must preserve test marker for downstream signup',async()=>{
    const h=harness();const dest=h.load('src/lib/click-tracking.ts').preregDestination('waiting','https://signup.invalid','https://preview.invalid/go/waiting?test=1');assert.equal(new URL(dest).searchParams.get('test'),'1');
  });
  await check('PREREG_LIVE_AT must filter signup cohort as well as clicks',async()=>{
-   const h=harness();h.env.PREREG_LIVE_AT='2026-10-08T00:00:00Z';h.state.signups.set('old',{slug:'waiting',signed_up_at:'2026-10-01T00:00:00Z',is_test:false});
+   const h=harness();h.env.PREREG_LIVE_AT='2026-10-08T00:00:00Z';h.state.clicks.push({id:1,slug:'waiting',clicked_at:'2026-09-30T00:00:00Z',is_test:false,is_example:false});h.state.signups.set('old',{slug:'waiting',click_id:1,signed_up_at:'2026-10-01T00:00:00Z',is_test:false});
    const a=await h.load('src/lib/server/activity.ts').loadAttribution(h.leads);assert.equal(a.signups,0);
  });
  await check('signup without click cannot be presented as verified click conversion',async()=>{

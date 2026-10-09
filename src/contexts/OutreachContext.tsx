@@ -20,7 +20,7 @@ function useWorkspace(initialSummary: LeadSummary | null, initialLeads: Lead[] |
   const [clicks, setClicks] = useState<{ leads: { slug: string; clicks: number }[]; groups: { group: string; clicks: number }[]; dailyBySlug: { slug: string; day: string; clicks: number }[]; daily: { day: string; clicks: number }[]; tests: { slug: string; clicks: number }[] } | null>(null);
   const [loading, setLoading] = useState(initialLeads === null);
   const [error, setError] = useState("");
-  const [saveStatus, setSaveStatus] = useState("Loading shared workspace…");
+  const [saveStatus, setSaveStatus] = useState(initialLeads ? "All edits saved to the shared workspace." : "Loading shared workspace…");
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [clicksAt, setClicksAt] = useState<number | null>(null);
   const [useSuggested, setUseSuggested] = useState(false);
@@ -29,12 +29,15 @@ function useWorkspace(initialSummary: LeadSummary | null, initialLeads: Lead[] |
   const revision = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requests = useRef<AbortController | null>(null);
+  const reading = useRef(false);
   const leadsRef = useRef<Lead[]>(initialLeads ?? []);
   const versions = useRef(new Map((initialLeads ?? []).map(l => [l.tracked_slug, l.version])));
   const undoStack = useRef<Undo[]>([]);
   const retry = useRef<() => void>(() => {});
   useEffect(() => { leadsRef.current = leads; }, [leads]);
   const refresh = useCallback(async () => {
+    if (reading.current) return;
+    reading.current = true;
     const requestedRevision = revision.current;
     try {
       const result = await request("/api/leads", { signal: requests.current?.signal });
@@ -42,7 +45,7 @@ function useWorkspace(initialSummary: LeadSummary | null, initialLeads: Lead[] |
       setClicks(old => JSON.stringify(old) === JSON.stringify(result.clicks) ? old : result.clicks);
       if (requestedRevision === revision.current && !saving.current && !Object.keys(pending.current).length) { versions.current = new Map((result.leads as Lead[]).map(l => [l.tracked_slug, l.version])); setLeads(old => JSON.stringify(old) === JSON.stringify(result.leads) ? old : result.leads); setError(""); setSaveStatus("All edits saved to the shared workspace."); setSavedAt(Date.now()); }
     } catch(e) { if (!requests.current?.signal.aborted) setError((e as Error).message); }
-    finally { setLoading(false); }
+    finally { reading.current = false; setLoading(false); }
   }, []);
   const flush = useCallback(async () => {
     if (saving.current) return;

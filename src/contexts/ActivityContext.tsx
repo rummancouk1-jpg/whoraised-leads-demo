@@ -40,11 +40,12 @@ export function ActivityProvider({ children, initial = null }: { children: React
       setData(next); setFetchedAt(Date.now()); setError("");
       const okAt = next.sync.lastOkAt ? Date.parse(next.sync.lastOkAt) : 0;
       // Behind schedule: ask the server to sync (it ignores the request if a good run is under 14 minutes old).
-      if (nudge && Date.now() - okAt > SYNC_INTERVAL_MIN * 60_000 && Date.now() - lastNudge.current > 5 * 60_000) {
+      const attemptedAt = next.sync.lastAttemptAt ? Date.parse(next.sync.lastAttemptAt) : 0;
+      if (nudge && Date.now() - okAt > SYNC_INTERVAL_MIN * 60_000 && Date.now() - attemptedAt > SYNC_INTERVAL_MIN * 60_000 && Date.now() - lastNudge.current > 5 * 60_000) {
         lastNudge.current = Date.now();
         const sync = await fetch("/api/sync", { method: "POST", signal: controller.current?.signal });
         const outcome = await sync.json();
-        if (!sync.ok || outcome.ok !== true) throw new Error("The latest sync could not finish. Previous data may be out of date.");
+        if (!sync.ok || typeof outcome.ok !== "boolean") throw new Error("The latest sync could not finish. Previous data may be out of date.");
         await read(false);
       }
     };
@@ -61,7 +62,7 @@ export function ActivityProvider({ children, initial = null }: { children: React
     try {
       const response = await fetch("/api/sync?manual=1", { method: "POST", signal: controller.current?.signal });
       const outcome = await response.json();
-      if (!response.ok || outcome.ok !== true) throw new Error("The latest sync could not finish. Previous data may be out of date.");
+      if (!response.ok || typeof outcome.ok !== "boolean") throw new Error("The latest sync could not finish. Previous data may be out of date.");
       await refresh();
     }
     catch (e) { if (!controller.current?.signal.aborted) setError(e instanceof Error ? e.message : "Sync could not finish."); }
