@@ -1,0 +1,22 @@
+// Summarize evidence under the user's explicit auth-gated crawlability exception.
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {api,project} from './infra.mjs';
+const root='evidence/r2-fix';
+const matrixRoot=process.env.MATRIX_EVIDENCE_ROOT??'matrix-complete';
+const read=path=>JSON.parse(fs.readFileSync(`${root}/${path}`,'utf8'));
+const matrices=['chrome','edge','webkit'].map(engine=>read(`${matrixRoot}/${engine}/matrix.json`));
+const matrix=matrices.flat(),checks=matrix.flatMap(row=>row.checks??[]);
+const matrixResult={configurations:matrix.length,checks:checks.length,failures:checks.filter(c=>!c.pass).length,runtimeErrors:matrix.flatMap(r=>r.errors??[]).length,axeScans:checks.filter(c=>/axe/.test(c.label)).length,axeFailures:checks.filter(c=>/axe/.test(c.label)&&!c.pass).length,assetFailures:matrix.flatMap(r=>r.assetFailures??[]).length};
+fs.writeFileSync(`${root}/${matrixRoot}/matrix.json`,JSON.stringify(matrix,null,2));
+fs.writeFileSync(`${root}/${matrixRoot}/summary.json`,JSON.stringify(matrixResult,null,2));
+const replay=read('replay/replay.json').results,postgres=read('postgres-contracts.json').results,pwa=read('pwa/pwa.json').rows,security=read('security.json'),failure=read('failure/results.json'),attribution=read('preview-attribution.json');
+const lighthouse=read('offmachine-auth-gated/medians.json'),isolation=read('isolation-proof.json');
+const preview=api('/v13/deployments/'+new URL(isolation.preview).hostname);
+const production=api(`/v9/projects/${project.projectId}`).targets.production;
+const originalProduction='dpl_FEgtY5hp3MaM9XyxBD1AnRByPbem';
+const gates={replay:replay.length===18&&replay.every(r=>r.pass),matrix:matrixResult.configurations===36&&new Set(matrix.map(r=>r.key)).size===36&&matrixResult.failures===0&&matrixResult.runtimeErrors===0&&matrixResult.axeFailures===0,lighthouse:lighthouse.pass&&lighthouse.seoException?.audit==='is-crawlable'&&lighthouse.medians.every(r=>r.seoAuditsPass&&r.seoGate.every(run=>run.authGateVerified&&run.policyMatches&&run.checks.every(c=>c.pass))),tests:/23 passed/.test(fs.readFileSync(`${root}/final-tests.log`,'utf8'))&&postgres.length===7&&postgres.every(r=>r.pass)&&pwa.length===22&&pwa.every(r=>r.status==='PASS')&&security.checks===109&&failure.rows.length===8&&failure.rows.every(r=>r.pass)&&attribution.checks.length===5&&attribution.checks.every(r=>r.pass),production:isolation.allUnchanged&&isolation.tables.length===13&&production.id===originalProduction};
+const result={at:new Date().toISOString(),branch:execFileSync('git',['branch','--show-current'],{encoding:'utf8'}).trim(),preview:{url:isolation.preview,id:preview.id,target:preview.target,state:preview.readyState,commit:preview.meta?.githubCommitSha??preview.gitSource?.sha},production:{id:production.id,unchanged:production.id===originalProduction},gates,allPass:Object.values(gates).every(Boolean),replay:{passed:replay.filter(r=>r.pass).length,total:replay.length},matrix:matrixResult,lighthouse,tests:{suite:23,postgres:postgres.length,pwaPassed:pwa.filter(r=>r.status==='PASS').length,pwaTotal:pwa.length,security:security.checks,failure:failure.rows.length,attribution:attribution.rows?.length??attribution.checks?.length},isolation:{tables:isolation.tables.length,allUnchanged:isolation.allUnchanged,realPreviewWrite:isolation.httpWriteObservedInPreview}};
+fs.writeFileSync(`${root}/release-gates.json`,JSON.stringify(result,null,2));
+console.log(JSON.stringify({gates,matrix:matrixResult,preview:result.preview,production:result.production,lighthouse:lighthouse.medians.map(r=>({key:r.key,scores:r.scores}))},null,2));
+if(preview.target==='production'||!result.allPass)process.exitCode=1;

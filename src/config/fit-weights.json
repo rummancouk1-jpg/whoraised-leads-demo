@@ -1,0 +1,48 @@
+{
+  "weights": {
+    "audience": 35,
+    "niche": 30,
+    "us_focus": 20,
+    "contact": 15
+  },
+  "audience": {
+    "under5k": 0.35,
+    "5kTo100k": 1,
+    "over100k": 0.6
+  },
+  "niche": {
+    "earnings": 1,
+    "options": 1,
+    "day trading": 0.75,
+    "swing": 0.65,
+    "general investing": 0.4
+  },
+  "us_focus": {
+    "yes": 1,
+    "mixed": 0.6,
+    "unknown": 0.2
+  },
+  "contact": {
+    "email": 1,
+    "dm": 0.5,
+    "missing": 0
+  },
+  "learning": {
+    "priorLeads": 3,
+    "minimumTouchedLeads": 3
+  },
+  "tiers": {
+    "priorityMinimumReach": 1000,
+    "unknownReachValues": [
+      0
+    ],
+    "nonUsFitPatterns": [
+      "geography.*unconfirmed",
+      "geographic focus.*unconfirmed",
+      "US[- ](?:stock|only).*?(?:unconfirmed|not established)",
+      "without explicit US-only coverage",
+      "Indian|European index",
+      "global multi-asset.*rather than US"
+    ]
+  }
+}

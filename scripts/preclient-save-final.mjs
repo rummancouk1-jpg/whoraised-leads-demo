@@ -1,0 +1,1 @@
+import fs from 'node:fs/promises';import {neon} from '@neondatabase/serverless';process.loadEnvFile('.env.local');const rows=(await neon(process.env.DATABASE_URL)`SELECT data FROM gg_leads ORDER BY slug`).map(r=>r.data);await fs.writeFile('evidence/preclient/leads-final.json',JSON.stringify(rows,null,2));

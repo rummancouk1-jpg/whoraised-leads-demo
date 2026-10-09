@@ -1,0 +1,56 @@
+# Demo readiness — 7 October 2026
+
+**READY**
+
+Canonical viewer URL: **https://gg-tourney-hub.vercel.app**. `gg-outreach.vercel.app` was occupied; the next requested alias succeeded. Vercel’s CLI was authenticated. The alias was additionally registered as a verified production project domain so fresh viewers receive the dashboard login rather than Vercel SSO. Project/deployment names remain internal.
+
+Old-host dashboard/login/pipeline/email paths redirect to the canonical host. Old-host `/go/` requests retain the existing redirect behavior. Pitch text, clickable pitch links and canonical metadata use the clean host. Login wording and pipeline UX were preserved.
+
+## Viewer matrix
+
+Installed real Chrome and Edge ran headed, with a fresh incognito browser context for each viewport/motion combination. No stored login session or spoofed user agent was used. Dimensions are CSS viewport widths, height 960. Reduced-motion checks additionally verified no active CSS animation/transition. Screenshots show page content; browser navigation URLs were recorded separately in the verification JSON to verify the address-bar destination. Native browser chrome is not included in page screenshots.
+
+The overflow gate follows your clarification: **no page-level horizontal overflow; existing internal pipeline/table scrolling is allowed**. Each row checks login, fully loaded home/status strip, pitch, analytics and fully loaded pipeline. Login HTML was checked for audited creator names and tracked slugs; unauthenticated leads requests return 401.
+
+| Browser | Width | Motion | Clean host/text | No pre-auth names | No page overflow | Strip readable | No console errors | Test counts excluded | Captures |
+|---|---:|---|---|---|---|---|---|---|---|
+| Chrome 154.0.8037.98 | 390 | Normal | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/chrome-390-normal-login.png) · [home](../evidence/demo-readiness/chrome-390-normal-home.png) · [pipeline](../evidence/demo-readiness/chrome-390-normal-pipeline.png) · [pitch](../evidence/demo-readiness/chrome-390-normal-pitch.png) · [analytics](../evidence/demo-readiness/chrome-390-normal-analytics.png) |
+| Chrome 154.0.8037.98 | 390 | Reduced | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/chrome-390-reduce-login.png) · [home](../evidence/demo-readiness/chrome-390-reduce-home.png) · [pipeline](../evidence/demo-readiness/chrome-390-reduce-pipeline.png) · [pitch](../evidence/demo-readiness/chrome-390-reduce-pitch.png) · [analytics](../evidence/demo-readiness/chrome-390-reduce-analytics.png) |
+| Chrome 154.0.8037.98 | 820 | Normal | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/chrome-820-normal-login.png) · [home](../evidence/demo-readiness/chrome-820-normal-home.png) · [pipeline](../evidence/demo-readiness/chrome-820-normal-pipeline.png) · [pitch](../evidence/demo-readiness/chrome-820-normal-pitch.png) · [analytics](../evidence/demo-readiness/chrome-820-normal-analytics.png) |
+| Chrome 154.0.8037.98 | 820 | Reduced | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/chrome-820-reduce-login.png) · [home](../evidence/demo-readiness/chrome-820-reduce-home.png) · [pipeline](../evidence/demo-readiness/chrome-820-reduce-pipeline.png) · [pitch](../evidence/demo-readiness/chrome-820-reduce-pitch.png) · [analytics](../evidence/demo-readiness/chrome-820-reduce-analytics.png) |
+| Chrome 154.0.8037.98 | 1440 | Normal | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/chrome-1440-normal-login.png) · [home](../evidence/demo-readiness/chrome-1440-normal-home.png) · [pipeline](../evidence/demo-readiness/chrome-1440-normal-pipeline.png) · [pitch](../evidence/demo-readiness/chrome-1440-normal-pitch.png) · [analytics](../evidence/demo-readiness/chrome-1440-normal-analytics.png) |
+| Chrome 154.0.8037.98 | 1440 | Reduced | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/chrome-1440-reduce-login.png) · [home](../evidence/demo-readiness/chrome-1440-reduce-home.png) · [pipeline](../evidence/demo-readiness/chrome-1440-reduce-pipeline.png) · [pitch](../evidence/demo-readiness/chrome-1440-reduce-pitch.png) · [analytics](../evidence/demo-readiness/chrome-1440-reduce-analytics.png) |
+| Edge 154.0.4258.53 | 390 | Normal | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/msedge-390-normal-login.png) · [home](../evidence/demo-readiness/msedge-390-normal-home.png) · [pipeline](../evidence/demo-readiness/msedge-390-normal-pipeline.png) · [pitch](../evidence/demo-readiness/msedge-390-normal-pitch.png) · [analytics](../evidence/demo-readiness/msedge-390-normal-analytics.png) |
+| Edge 154.0.4258.53 | 390 | Reduced | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/msedge-390-reduce-login.png) · [home](../evidence/demo-readiness/msedge-390-reduce-home.png) · [pipeline](../evidence/demo-readiness/msedge-390-reduce-pipeline.png) · [pitch](../evidence/demo-readiness/msedge-390-reduce-pitch.png) · [analytics](../evidence/demo-readiness/msedge-390-reduce-analytics.png) |
+| Edge 154.0.4258.53 | 820 | Normal | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/msedge-820-normal-login.png) · [home](../evidence/demo-readiness/msedge-820-normal-home.png) · [pipeline](../evidence/demo-readiness/msedge-820-normal-pipeline.png) · [pitch](../evidence/demo-readiness/msedge-820-normal-pitch.png) · [analytics](../evidence/demo-readiness/msedge-820-normal-analytics.png) |
+| Edge 154.0.4258.53 | 820 | Reduced | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/msedge-820-reduce-login.png) · [home](../evidence/demo-readiness/msedge-820-reduce-home.png) · [pipeline](../evidence/demo-readiness/msedge-820-reduce-pipeline.png) · [pitch](../evidence/demo-readiness/msedge-820-reduce-pitch.png) · [analytics](../evidence/demo-readiness/msedge-820-reduce-analytics.png) |
+| Edge 154.0.4258.53 | 1440 | Normal | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/msedge-1440-normal-login.png) · [home](../evidence/demo-readiness/msedge-1440-normal-home.png) · [pipeline](../evidence/demo-readiness/msedge-1440-normal-pipeline.png) · [pitch](../evidence/demo-readiness/msedge-1440-normal-pitch.png) · [analytics](../evidence/demo-readiness/msedge-1440-normal-analytics.png) |
+| Edge 154.0.4258.53 | 1440 | Reduced | PASS | PASS | PASS | PASS | PASS | PASS | [login](../evidence/demo-readiness/msedge-1440-reduce-login.png) · [home](../evidence/demo-readiness/msedge-1440-reduce-home.png) · [pipeline](../evidence/demo-readiness/msedge-1440-reduce-pipeline.png) · [pitch](../evidence/demo-readiness/msedge-1440-reduce-pitch.png) · [analytics](../evidence/demo-readiness/msedge-1440-reduce-analytics.png) |
+
+[Machine verification, actual URLs, dimensions, metrics and browser versions](../evidence/demo-readiness/verification.json). Full home/pipeline page captures accompany each viewport capture in the same directory. Earlier SSO failures are retained in [alias-sso-failure.json](../evidence/demo-readiness/alias-sso-failure.json); they are superseded by the production-domain registration and final matrix.
+
+## Real click and permanent test hygiene
+
+The natural Chrome 390 click on `r1-alphatrends` moved its real count from 0 to 1, once. Landing: https://earningstournament.com/?utm_source=creator&utm_campaign=gg-q3&utm_content=r1-alphatrends. [Landing capture](../evidence/demo-readiness/real-click-landing-390.png). The proof was retained rather than generating another real click during capture reruns.
+
+Twitter, Facebook, Slack, Discord, LinkedIn, WhatsApp and Telegram previews, a prefetch request, and HEAD checks did not move the real count. Canonical and old-host HEAD redirects returned the same creator UTM attribution. A normal request with `?test=1` created a test event while per-lead, group and daily real arrays stayed unchanged.
+
+Live classification: **1 real click, 9 test clicks**. No existing EXAMPLE/prefixed test event lacks `is_test=true`. Prefixes `example-` / `test-` and query `test=1` are classified on every new stored click. The small Show test clicks toggle is off by default; tests appear only in its separate list. Real analytics SQL filters tests before aggregating. Conversion groups and suggested weights exclude fixture/test leads. Historical click rows never stored query strings, so historical backfill uses their stored slug/EXAMPLE marker; query classification applies prospectively. The only current unmarked real event is the recorded natural mobile click.
+
+[Live click classification](../evidence/demo-readiness/live-click-classification.json), [isolated SQL aggregation proof](../evidence/demo-readiness/test-metric-proof.json), [unit coverage](../tests/click-tracking.spec.ts). Five unit/contract tests passed. Build and production deployment passed; lint has no errors (one pre-existing unused-variable warning in the R1 YouTube-date script).
+
+[Live exported CSV](../evidence/demo-readiness/live-export.csv), [export/toggle proof](../evidence/demo-readiness/export-toggle-proof.json), [test toggle capture](../evidence/demo-readiness/chrome-390-test-toggle.png), [email view capture](../evidence/demo-readiness/chrome-390-email.png), [built/public content scan](../evidence/demo-readiness/built-content-scan.json).
+
+Final deployed production build: `dpl_5xEgUhaRZKGz6HFboGJmZKX3Yhub`. [Canonical/old-host redirect and pre-auth proof](../evidence/demo-readiness/final-host-proof.json).
+
+## Real status and audit
+
+Instantly: **17 inboxes warming, 100% average health**, 17/17 measured, snapshot timestamp 2026-10-07T10:07:30.002Z. No campaign exists: **Waiting for prereg link**. The strip reads live data, falls back to a timestamped saved snapshot, and shows unavailable/loading states without invented numbers. A real campaign, including an unsent draft, displays its API status.
+
+Queued: **50 real rows** — Discord: 2, Substack: 4, X: 1, YouTube: 43. The separate EXAMPLE fixture explains the existing Total leads card showing 51. It is excluded from queued, signup/conversion, learning and click metrics.
+
+Creator audit: **66 original → 25 retained / 41 removed + 25 replacements = 50**. [Top 15 and removal reasons](CREATOR_LIST_AUDIT.md). [Final audited CSV](../data/creator-list-audited.csv). Original pipeline fields passed exact preservation checks for retained and archived rows. [State proof](../evidence/demo-readiness/final-state-proof.json).
+
+The source/public-file and live data scans found no user-visible old product name. The sole source occurrence is the internal old-host comparison needed for migration redirects. Favicon inspection found a symbol with no product wording; manifest/title/social metadata are GG Outreach. Email snapshot data and exported lead data were scanned too. Reports, captures and verification scripts are excluded from the Vercel upload.
+
+Remaining intentional campaign state: no prereg campaign has been created or launched. This is displayed honestly and is not a demo gate failure. The real link currently lands on the configured tournament homepage with attribution; it does not claim prereg signup completion.

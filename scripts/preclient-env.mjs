@@ -1,0 +1,1 @@
+import fs from 'node:fs/promises';import env from '@next/env';const text=await fs.readFile('.env.preclient.local','utf8');const parsed=env.processEnv([{path:'.env.preclient.local',contents:text,env:{}}],true).parsedEnv;console.log(Object.keys(parsed).filter(k=>/INSTANTLY|GG_|DATABASE|CRON/.test(k)).map(k=>({key:k,configured:!!parsed[k]})));
