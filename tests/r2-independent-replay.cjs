@@ -107,7 +107,7 @@ function fixture(h,day) {
 }
 async function check(name,work){try{await work();results.push({name,pass:true});console.log('PASS',name);}catch(e){results.push({name,pass:false,error:e.message});console.log('FAIL',name,'—',e.message);}}
 
-(async()=>{
+async function replay(){
  await check('multi-day real sync replay: pagination, cumulative replacement, dedupe, timeline, queue',async()=>{
    const h=harness();for(const day of [1,2,3]){fixture(h,day);assert.equal((await h.sync().runInstantlySync('cron')).ok,true);}
    const before=JSON.stringify([...h.state.stats]);const eventCount=h.state.events.size;
@@ -195,4 +195,6 @@ async function check(name,work){try{await work();results.push({name,pass:true});
  const evidence=path.resolve(ROOT,process.env.EVIDENCE_ROOT||'evidence/r2-independent');
  fs.mkdirSync(evidence,{recursive:true});fs.writeFileSync(path.join(evidence,'replay.json'),JSON.stringify({at:new Date().toISOString(),database:'in-memory transport; no network',results},null,2));
  console.log(`${results.filter(r=>r.pass).length}/${results.length} checks passed`);process.exitCode=results.some(r=>!r.pass)?1:0;
-})();
+}
+module.exports={harness,fixture,NOW};
+if(require.main===module)replay();

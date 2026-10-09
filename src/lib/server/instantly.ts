@@ -135,9 +135,9 @@ export async function selectCampaignId(): Promise<{ id: string | null; message: 
 }
 
 /** Every lead row and every campaign email (sends and inbound replies). Bounded so a runaway cursor cannot loop. */
-export type ActivityCheckpoint = { phase: "leads" | "emails" | "done"; cursor: string; seen: string[]; leads: RecordValue[]; emails: RecordValue[]; pages: number };
+export type ActivityCheckpoint = { phase: "leads" | "emails" | "done"; cursor: string; seen: string[]; leads: RecordValue[]; emails: RecordValue[]; pages: number; observedFrom?: string };
 export async function fetchCampaignActivity(campaignId: string, resume?: ActivityCheckpoint, save?: (state: ActivityCheckpoint) => Promise<void>) {
-  const state: ActivityCheckpoint = resume ?? { phase: "leads", cursor: "", seen: [], leads: [], emails: [], pages: 0 };
+  const state: ActivityCheckpoint = resume ?? { phase: "leads", cursor: "", seen: [], leads: [], emails: [], pages: 0, observedFrom: new Date().toISOString() };
   let loaded = 0;
   const keep = (row: RecordValue) => Object.fromEntries(Object.entries(row).filter(([key]) => ["id","email","status","lt_interest_status","email_open_count","email_click_count","timestamp_last_open","timestamp_last_click","timestamp_last_contact","lead","campaign_id","ue_type","is_auto_reply","timestamp_email","timestamp_created","thread_id"].includes(key)));
   while (state.phase !== "done") {
@@ -159,7 +159,7 @@ export async function fetchCampaignActivity(campaignId: string, resume?: Activit
     else { state.phase = isLead ? "emails" : "done"; state.cursor = ""; state.seen = []; }
     if (save) await save(state);
   }
-  return { leads: state.leads, emails: state.emails };
+  return { leads: state.leads, emails: state.emails, observedFrom: state.observedFrom ?? new Date().toISOString() };
 }
 
 /**

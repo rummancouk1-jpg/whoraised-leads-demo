@@ -92,7 +92,8 @@ export function syncHealth(runs: SyncRun[], now = Date.now()): SyncHealth {
   let consecutiveFailures = 0;
   for (const r of finished) { if (r.ok === false) consecutiveFailures++; else break; }
   const failedSince = consecutiveFailures ? finished[consecutiveFailures - 1].startedAt : null;
-  const okAt = lastOk?.finishedAt ?? lastOk?.startedAt ?? null;
+  const observed = lastOk?.counts?.observedFrom;
+  const okAt = typeof observed === "string" && Number.isFinite(Date.parse(observed)) ? observed : lastOk?.finishedAt ?? lastOk?.startedAt ?? null;
   let state: SyncHealth["state"] = "never";
   if (latestRun) state = latestRun.ok === false ? "failing" : (ms(okAt) !== null && now - ms(okAt)! > STALE_AFTER_MIN * 60_000 ? "stale" : "ok");
   return { state, lastOkAt: okAt, lastAttemptAt: latestRun?.finishedAt ?? latestRun?.startedAt ?? null, lastError: latestRun?.ok === false ? latestRun.error : null, failedSince, consecutiveFailures, counts: lastOk?.counts ?? null };

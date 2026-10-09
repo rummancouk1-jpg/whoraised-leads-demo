@@ -9,5 +9,7 @@ export async function POST(request: Request) {
   if (!await takeBudget(requestIdentity(request,"sync"),6,60)) return privateJson({ok:false,error:"Please wait before syncing again."},429);
   const manual = new URL(request.url).searchParams.get("manual") === "1";
   const outcome = await runInstantlySync(manual ? "manual" : "auto", manual ? 1 : 14);
-  return privateJson(outcome,outcome.ok?200:502);
+  // The command ran; its explicit job outcome is separate from HTTP transport success.
+  // Provider failure remains recorded and the client must inspect outcome.ok.
+  return privateJson(outcome);
 }

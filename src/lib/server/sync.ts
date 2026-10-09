@@ -35,7 +35,7 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
     if (campaign.id) {
       const checkpoint = await sql`SELECT state FROM gg_sync_checkpoints WHERE campaign=${campaign.id}`;
       const saved = checkpoint[0]?.state as ActivityCheckpoint | undefined;
-      const { leads: remote, emails } = await withInstantlyDeadline(() => fetchCampaignActivity(campaign.id!, saved, async state => {
+      const { leads: remote, emails, observedFrom } = await withInstantlyDeadline(() => fetchCampaignActivity(campaign.id!, saved, async state => {
         await sql`INSERT INTO gg_sync_checkpoints(campaign,state) SELECT ${campaign.id},${JSON.stringify(state)}::jsonb
           WHERE EXISTS (SELECT 1 FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now())
           ON CONFLICT(campaign) DO UPDATE SET state=EXCLUDED.state,updated_at=now()`;
@@ -54,7 +54,7 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
           WHERE EXISTS (SELECT 1 FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now())
           ON CONFLICT (ref) DO UPDATE SET at=EXCLUDED.at, n=EXCLUDED.n`,
       ];
-      counts = { campaign: "found", matched: mapped.stats.length, sent: mapped.stats.reduce((n, s) => n + s.sent, 0), opened: mapped.stats.reduce((n, s) => n + (s.opened ?? 0), 0), replied: mapped.stats.reduce((n, s) => n + s.replied, 0), bounced: mapped.stats.filter(s => s.bounced).length, instantlyLeads: remote.length, emails: emails.length };
+      counts = { campaign: "found", observedFrom, matched: mapped.stats.length, sent: mapped.stats.reduce((n, s) => n + s.sent, 0), opened: mapped.stats.reduce((n, s) => n + (s.opened ?? 0), 0), replied: mapped.stats.reduce((n, s) => n + s.replied, 0), bounced: mapped.stats.filter(s => s.bounced).length, instantlyLeads: remote.length, emails: emails.length };
       queries.push(sql`DELETE FROM gg_sync_checkpoints WHERE campaign=${campaign.id} AND EXISTS (SELECT 1 FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now())`);
       queries.push(sql`UPDATE gg_sync_runs SET finished_at=now(), ok=true, counts=${JSON.stringify(counts)}::jsonb WHERE id=${id} AND EXISTS (SELECT 1 FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now()) RETURNING id`);
       const committed = await sql.transaction(queries);
