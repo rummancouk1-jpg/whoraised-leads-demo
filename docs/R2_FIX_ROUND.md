@@ -1,6 +1,6 @@
 # R2 independent-audit fix round
 
-10 October 2026 (Pakistan time), branch `design/elevation`, verified application commit `5fd0fa9`. Preview only; no promotion or production writes. Twenty-six findings have completed fixes; B6's measurement is available but its four-category gate remains failed. This report supersedes preparation status, not the original audit's historical findings. Final aggregate: `evidence/r2-fix/release-gates.json`.
+10 October 2026 (Pakistan time), branch `design/elevation`, verified application commit `5fd0fa9`, Lighthouse policy/workflow commit `9725619`. Preview only; no promotion or production writes. All 27 findings are addressed within the verification scope below; all five gates pass under the explicitly accepted auth-gated crawlability exception. This report supersedes preparation status, not the original audit's historical findings. Final aggregate: `evidence/r2-fix/release-gates.json`.
 
 Preview: https://whoraised-leads-demo-r6q3sfl03-rummancouk1-9706s-projects.vercel.app
 
@@ -10,19 +10,21 @@ Preview: https://whoraised-leads-demo-r6q3sfl03-rummancouk1-9706s-projects.verce
 |---|---|---|
 | Permanent real-code replay | **18/18 PASS** | `replay/replay.json`; `tests/r2-replay.spec.ts:4` |
 | Full matrix / axe | **36 configurations, 1,206 checks PASS; axe 0** | `matrix-complete/summary.json`, `matrix-complete/{chrome,edge,webkit}/matrix.json`; 360 axe scans, zero failures/runtime/asset errors; actual stale/failed fixtures and multi-day History included |
-| Off-machine Lighthouse, all four categories >=90 | **FAIL: SEO 66** | Actions [37956763508](https://github.com/rummancouk1-jpg/whoraised-leads-demo/actions/runs/37956763508), `offmachine-release/medians.json`; mobile performance 93/99/100, desktop 100/100/100, accessibility/best practices 100 |
-| All tests | **22/22 PASS**, PostgreSQL **7/7 PASS** | `final-tests.log`, `postgres-contracts.json`; build passes, lint 0 errors / 16 warnings |
+| Off-machine Lighthouse, all four categories >=90 | **PASS with accepted is-crawlable exception; SEO 100** | Successful Actions [37981135881](https://github.com/rummancouk1-jpg/whoraised-leads-demo/actions/runs/37981135881), `offmachine-auth-gated/medians.json`; mobile performance 93/99/100, desktop 100/100/100, accessibility/best practices/SEO 100 |
+| All tests | **23/23 PASS**, PostgreSQL **7/7 PASS** | `final-tests.log`, `postgres-contracts.json`; build passes, lint 0 errors / 16 warnings; added strict crawlability-exception regression contract |
 | Production preservation | **13/13 counts and hashes unchanged** on final preview | `production-before.json`, `isolation-proof.json`; actual preview HTTP PATCH observed directly on child and restored |
 
-The raw Lighthouse SEO failure is retained. Its failing SEO audit is `is-crawlable`: the authenticated workspace intentionally blocks indexing, and Vercel adds `X-Robots-Tag: noindex` to preview URLs ([official documentation](https://vercel.com/docs/headers/response-headers)). No category was omitted/reweighted, privacy header removed or login-shell score substituted. This requested four-category gate remains failed; no promotion is cleared.
+**Accepted exception:** the user approved skipping only `is-crawlable` for auth-gated apps. `scripts/r2/lighthouse-policy.mjs` centralizes that rule; the runner enables it only after anonymous requests to all three measured pages and `/api/leads` return 401, and authenticated data access succeeds. Every remaining scored SEO audit must pass on **every run**, not merely achieve a passing median; a missing/error/failing audit or an additional skip fails the gate. Lighthouse's unscored `structured-data` manual review remains listed separately and is not represented as an automated pass. No privacy header was removed or login-shell score substituted; no promotion occurred.
+
+The original unexcepted SEO 66 reports remain in `offmachine-release/` and failed Actions [37956763508](https://github.com/rummancouk1-jpg/whoraised-leads-demo/actions/runs/37956763508). Their sole failed SEO audit was `is-crawlable`: the authenticated workspace intentionally blocks indexing, and Vercel adds `X-Robots-Tag: noindex` to preview URLs ([official documentation](https://vercel.com/docs/headers/response-headers)). The new scores below explicitly include the approved exception.
 
 | Authenticated page | Mobile P / A / BP / SEO | Desktop P / A / BP / SEO |
 |---|---|---|
-| Home | 93 / 100 / 100 / 66 | 100 / 100 / 100 / 66 |
-| Pipeline | 99 / 100 / 100 / 66 | 100 / 100 / 100 / 66 |
-| Email | 100 / 100 / 100 / 66 | 100 / 100 / 100 / 66 |
+| Home | 93 / 100 / 100 / 100* | 100 / 100 / 100 / 100* |
+| Pipeline | 99 / 100 / 100 / 100* | 100 / 100 / 100 / 100* |
+| Email | 100 / 100 / 100 / 100* | 100 / 100 / 100 / 100* |
 
-Each median contains three runs on an Ubuntu GitHub Actions runner, 18 signed-in runs total. Largest contributor to each below-90 category: `is-crawlable`, “Page is blocked from indexing.” Performance passes: remaining measured Home opportunities include approximately 49 KiB unused JavaScript and 14 KiB legacy JavaScript, neither a failed median. Resolving the requested gate needs an explicit private-preview SEO exception; it has not been assumed.
+*SEO excludes only `is-crawlable`, with the exception recorded in each raw run and aggregate artifact. Each median contains three runs on an Ubuntu GitHub Actions runner, 18 signed-in runs total. All nine remaining scored SEO audits pass in all 18 runs (162 successful checks). No current category median is below 90. Home's remaining unused/legacy JavaScript opportunities are retained in raw reports. `tests/lighthouse-policy.spec.ts` rejects extra skips and exercises every remaining scored audit with failed, partial, errored and missing results.
 
 Additional final-preview checks: security **109**, failure UX **8/8**, real HTTP/Neon attribution **5/5**, PWA **22/22**, client secret scan **26 files / 16 scoped secret values / zero matches**. Captured artifacts disclose earlier failed attempts and their corrections; those failures were not silently omitted from history. The final production proof at 19:21 UTC on 9 October (00:21 Pakistan time on 10 October) matches the original 08:20 UTC preflight.
 
@@ -35,7 +37,7 @@ Additional final-preview checks: security **109**, failure UX **8/8**, real HTTP
 | B3 | Normalize numeric auto-reply flags, compare actual reply/contact times, include null-campaign manual answers for selected lead addresses. | `src/lib/instantly-map.ts:65`, `src/lib/activity.ts:55`, `src/lib/server/instantly.ts:147`; all three independent reply replay cases pass. | Fixed |
 | B4 | Signed click identity/test state reaches signup; FK joins actual same-slug click; launch filter covers both sides. Preview links use preview origin and preview visits are forced test. | `src/lib/server/attribution-token.ts:6`, signup route, `src/lib/server/activity.ts:30`; `preview-attribution.json` five real HTTP/Neon checks. | Endpoint fixed; external sender unverified |
 | B5 | Client health ages with time and reflects read/offline failure; stale/failed/never-synced data cannot say clear; retry recovers; manual sync reloads persisted attempt. | `src/contexts/ActivityContext.tsx:33`, `src/components/outreach/NeedsAction.tsx:31`; `failure/results.json` **8/8**. | Fixed |
-| B6 | Authenticated Actions workflow, Vercel bypass, three mobile/desktop passes on each of three pages, redacted artifacts and raw four-category gate. Lazy-load overlays and reduce CLS. | `.github/workflows/r2-preview-lighthouse.yml:1`, `scripts/design/lighthouse.mjs`, `scripts/r2/lighthouse-medians.mjs`; deciding run linked above. | Measurement fixed; **SEO gate FAIL** |
+| B6 | Authenticated Actions workflow, Vercel bypass, three mobile/desktop passes on each of three pages, redacted artifacts and four-category gate with only the user-approved crawlability exception. Lazy-load overlays and reduce CLS. | `.github/workflows/r2-preview-lighthouse.yml:1`, `scripts/design/lighthouse.mjs`, `scripts/r2/lighthouse-policy.mjs`, `scripts/r2/lighthouse-medians.mjs`; successful deciding run linked above. | Fixed; **PASS with accepted exception** |
 
 ## 21 SHOULD-FIX items
 
@@ -58,7 +60,7 @@ Additional final-preview checks: security **109**, failure UX **8/8**, real HTTP
 | S15 | Durable atomic login/sync/click/webhook/error budgets; bounded stream bodies; browser mutation origin checks. `src/lib/server/limits.ts:4`, `:16`, routes. | PostgreSQL contention; **109 deployed security checks**; signed webhook HTTP contract. |
 | S16 | Proxy signature check; private page/route DB revocation under 1.5s; initial reads cancel at 2.5s; fresh per-query signal. Auth:33, DB:5, initial-status:19. | Revoked cookie 401; real PostgreSQL reused-client timeout; build/type checks. |
 | S17 | Plain operational copy; live zero-signup distinction; no raw credential-variable copy or pre-auth names. DigestPreview, auth route, timeline. | Pre-auth name scan; live-empty replay; screenshots. |
-| S18 | Permanent auditor replay and large-page/signature/unknown/observation-age tests; real PostgreSQL contention/rollback/CAS. `tests/r2-replay.spec.ts:4`, `tests/r2-extra.spec.ts:3`. | **18/18** replay, **22/22** suite, **7/7** PostgreSQL. |
+| S18 | Permanent auditor replay and large-page/signature/unknown/observation-age tests; real PostgreSQL contention/rollback/CAS. `tests/r2-replay.spec.ts:4`, `tests/r2-extra.spec.ts:3`. | **18/18** replay, **23/23** suite, **7/7** PostgreSQL. |
 | S19 | Shared caught/timeout logout with retry; serialize worker registration/cleanup; unregister before acknowledgment; login finishes interrupted cleanup. useLogout, session-navigation, PwaRegister, Login. | Offline nav/palette failure contracts; permanent registration/logout ordering test; final PWA **22/22**. |
 | S20 | Weekly conversions use same seven-day click/signup cohort; label weekly outcomes/campaign totals. Digest:16/:47, activity:26. | Replay weekly query/model; exact authenticated digest preview. |
 | S21 | Lazy overlays, server data reuse, reserved board layout, request clock matching hydration, no overlapping polls. Workspace/UIHost/BoardSkeleton/RelTime. | Final off-machine performance >=90 on all six page/device medians; request-clock fix reduced measured CLS .239 to approximately .001. |

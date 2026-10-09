@@ -11,7 +11,7 @@ const matrixResult={configurations:matrix.length,checks:checks.length,failures:c
 fs.writeFileSync(`${root}/${matrixRoot}/matrix.json`,JSON.stringify(matrix,null,2));
 fs.writeFileSync(`${root}/${matrixRoot}/summary.json`,JSON.stringify(matrixResult,null,2));
 const replay=read('replay/replay.json').results,postgres=read('postgres-contracts.json').results,pwa=read('pwa/pwa.json').rows,security=read('security.json'),failure=read('failure/results.json'),attribution=read('preview-attribution.json');
-const lighthouse=read('offmachine-release/medians.json'),isolation=read('isolation-proof.json');
+const lighthouse=read('offmachine-auth-gated/medians.json'),isolation=read('isolation-proof.json');
 const preview=api('/v13/deployments/'+new URL(isolation.preview).hostname);
 const production=api(`/v9/projects/${project.projectId}`).targets.production;
 const originalProduction='dpl_FEgtY5hp3MaM9XyxBD1AnRByPbem';
