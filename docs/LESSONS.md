@@ -98,3 +98,20 @@
 - Capture production counts and row hashes using SELECT-only transactions before branching or exercising preview writes. A baseline alone does not establish that preview writes leave production unchanged; compare again around an actual preview write.
 - A missing Neon account profile is an infrastructure dependency. Install/check the CLI, request human sign-in, and keep the isolation mutation path gated. Even an API `--describe` request can start authentication; do not assume it is equivalent to offline `--help`.
 - Prepared scripts are not completed fixes. Record which paths actually ran and keep the replay, browser matrix, off-machine performance and production-preservation gates explicitly pending until evidence exists.
+
+## R2 independent-audit fix round — 9 October 2026
+
+- This supersedes earlier shared-DB advice: labels do not isolate stats/events/imports/sessions. Use a child branch, endpoint and child-only credentials; split every DB alias and reject the production host. Prove a child write leaves original production counts/hashes unchanged.
+- Immutable previews retain old env. Inspect/retire shared-DB deployments; make fresh previews instead of redeploying old config.
+- SELECT-before-INSERT is not a lock. Acquire an atomic lease, owner-bind release/checkpoints and hold its row FOR UPDATE through commit. Test PostgreSQL contention/rollback separately from replay transport.
+- Persist cursor, records and oldest observation time. Partial/rate-limited attempts preserve complete data and show failure; a long crawl must not get false freshness from its finish timestamp.
+- Numeric auto-replies/null-campaign manual answers are real provider cases. Replay multiple days through actual sync, asserting counts/history/queue; optional missing counters stay unknown.
+- Carry signed click/test state to signup; verify raw-body signature/timestamp/nonce and actual click FK. Apply dates to both sides. Preview drafts resolve to preview; preview visits stay test traffic.
+- An empty queue asserts fresh successful reads. HTTP errors, elapsed time and offline state invalidate clear while cached rows remain. Test healthy-to-unhealthy transitions and recovery.
+- Serialize the SSR request clock: replacing “recently” with a longer age caused mobile CLS .239; accurate hydration reduced it to approximately .001. Lazy overlays stay outside initial JavaScript.
+- Lighthouse needs real app-session and Vercel bypass cookies, including worker requests. Verify signed-in data and redact secrets. Retain raw categories: private noindex pages fail SEO; hiding that failure does not pass a gate.
+- WebKit touch can retain earlier focus. Capture opener before blur, restore after inert cleanup, reveal focus above navigation centrally and portal/bound tooltips. Exercise actual Tab, not direct focus alone.
+- Serialize in-flight worker registration with logout; remove deferred load listeners. Unregister before waiting for CLEAR, stop cache puts, delete caches and finish interrupted cleanup on login. Catch offline logout and offer retry everywhere.
+- Mail idempotency has a retention window. Ambiguous delivery outside it requires reconciliation, not automatic retry. Disabled preview mail must not append send audits.
+- Declare a remote browser wait budget, preserve failed-run evidence and rerun configurations. Never silently omit a failure or turn a raw failed gate into a pass.
+- Wait for the specific fixture state, not a generic warning already present in server HTML. Include new chronological History controls in the timeline matrix; otherwise a passing screenshot can audit the wrong state or miss the actual new surface. The completed 36-config rerun passed 1,206 checks and 360 axe scans.
