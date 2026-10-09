@@ -224,7 +224,7 @@ main:focus { outline: none; }
 .gg-name-button small { display: block; color: var(--text-2); font-size: var(--step--2); font-weight: 400; margin-top: 2px; }
 .gg-score { display: inline-block; border: 1px solid var(--line-strong); background: var(--accent-weak); color: var(--accent-text); font-size: var(--step--2); font-weight: 650; border-radius: 8px; padding: 2px 8px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .gg-reltime { position: relative; display: inline-block; cursor: help; border-bottom: 1px dotted var(--text-3); }
-.gg-reltime-tip { position: absolute; z-index: 40; left: 0; bottom: calc(100% + 8px); padding: 6px 10px; border-radius: 8px; background: var(--toast-bg); color: var(--toast-fg); font-size: var(--step--2); font-weight: 500; white-space: nowrap; box-shadow: var(--shadow); pointer-events: none; animation: pop var(--d-fast) var(--ease-spring); }
+.gg-reltime-tip { position: fixed; z-index: 150; max-width: min(320px, calc(100vw - 32px)); padding: 6px 10px; border-radius: 8px; background: var(--toast-bg); color: var(--toast-fg); font-size: var(--step--2); font-weight: 500; white-space: normal; overflow-wrap: anywhere; box-shadow: var(--shadow); pointer-events: none; }
 .gg-reltime-tip[hidden] { display: none; }
 .gg-empty { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); padding: 44px var(--s-6); margin: 0 var(--s-5) var(--s-5); border: 1px dashed var(--line-strong); border-radius: var(--r-2); text-align: center; }
 .gg-empty-icon { font-size: 32px; color: var(--accent-text); }

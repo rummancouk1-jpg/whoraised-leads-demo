@@ -35,6 +35,7 @@ for(const [engine,launch] of browsers){
    const wanted=await page.locator(selector).count();assert(wanted>0,'No keyboard targets rendered');const seen=new Set(),order=[];
    for(let i=0;i<150&&seen.size<wanted;i++){
     await page.keyboard.press('Tab');
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     const value=await page.evaluate(selector=>{const targets=[...document.querySelectorAll(selector)],el=document.activeElement,index=targets.indexOf(el);if(index<0)return null;const r=el.getBoundingClientRect();const visible=[[.2,.2],[.5,.5],[.8,.8]].some(([x,y])=>{const px=r.left+r.width*x,py=r.top+r.height*y;return px>=0&&px<innerWidth&&py>=0&&py<innerHeight&&document.elementsFromPoint(px,py).some(n=>n===el||el.contains(n));});return {index,visible,text:el.textContent.slice(0,100)};},selector);
     if(value&&!seen.has(value.index)){assert(value.visible,'Focused target obscured: '+value.text);seen.add(value.index);order.push(value.index);}
    }

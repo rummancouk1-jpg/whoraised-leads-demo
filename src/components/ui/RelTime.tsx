@@ -1,6 +1,7 @@
 "use client";
-import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { exactTime, parseTime, relativeTime, type TimeInput } from "@/lib/time";
+import { createPortal } from "react-dom";
 
 const listeners = new Set<() => void>();
 let tick = Date.now();
@@ -26,8 +27,20 @@ export function RelTime({ value, prefix = "", fallback = "—", plain = false }:
   const now = useNow();
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLTimeElement>(null);
+  const [position, setPosition] = useState({ left: 16, top: 16 });
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hide = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const place = useCallback(() => {
+    const rect = anchor.current?.getBoundingClientRect();
+    if (rect) setPosition({ left: Math.max(16, Math.min(rect.left, innerWidth - 336)), top: rect.bottom + 80 > innerHeight ? Math.max(8, rect.top - 72) : rect.bottom + 8 });
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(place);
+    window.addEventListener('scroll', place, true); window.addEventListener('resize', place);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
+  }, [open, place]);
   useEffect(() => () => { if (press.current) clearTimeout(press.current); if (hide.current) clearTimeout(hide.current); }, []);
   const parsed = parseTime(value);
   if (!parsed) return <span>{fallback}</span>;
@@ -37,8 +50,11 @@ export function RelTime({ value, prefix = "", fallback = "—", plain = false }:
   const text = now === 0 ? "recently" : relativeTime(value, now);
   // Inside a button or link the time must not be interactive (a tap on it would swallow the click and nest focusable controls).
   if (plain) return <time dateTime={parsed.dateOnly ? String(value) : parsed.date.toISOString()}>{prefix}{text}<span className="gg-sr-only">, {exact}</span></time>;
-  const show = (autoHide = false) => { setOpen(true); if (hide.current) clearTimeout(hide.current); if (autoHide) hide.current = setTimeout(() => setOpen(false), 3500); };
-  return <time className="gg-reltime" dateTime={parsed.dateOnly ? String(value) : parsed.date.toISOString()} tabIndex={0} data-open={open || undefined}
+  const show = (autoHide = false) => {
+    place();
+    setOpen(true); if (hide.current) clearTimeout(hide.current); if (autoHide) hide.current = setTimeout(() => setOpen(false), 3500);
+  };
+  return <time ref={anchor} className="gg-reltime" dateTime={parsed.dateOnly ? String(value) : parsed.date.toISOString()} tabIndex={0} data-open={open || undefined}
     onPointerEnter={e => { if (e.pointerType === "mouse") show(); }}
     onPointerLeave={e => { if (e.pointerType === "mouse") setOpen(false); }}
     onPointerDown={e => { if (e.pointerType !== "mouse") press.current = setTimeout(() => show(true), 450); }}
@@ -49,6 +65,6 @@ export function RelTime({ value, prefix = "", fallback = "—", plain = false }:
     onFocus={() => show()} onBlur={() => setOpen(false)}
     onKeyDown={e => { if (e.key === "Escape") setOpen(false); }}>
     <span aria-hidden="true">{prefix}{text}</span><span className="gg-sr-only">{prefix}{text}, {exact}</span>
-    <span role="tooltip" className="gg-reltime-tip" hidden={!open} aria-hidden="true">{exact}</span>
+    {open && createPortal(<span role="tooltip" className="gg-reltime-tip" style={position} aria-hidden="true">{exact}</span>, document.body)}
   </time>;
 }
