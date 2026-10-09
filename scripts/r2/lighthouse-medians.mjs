@@ -14,9 +14,10 @@ for(let pass=1;pass<=3;pass++){
 const median=a=>a.sort((a,b)=>a-b)[Math.floor(a.length/2)];
 const medians=[...new Set(rows.map(r=>r.key))].map(key=>{
  const runs=rows.filter(r=>r.key===key),scores=Object.fromEntries(Object.keys(runs[0].scores).map(cat=>[cat,median(runs.map(r=>r.scores[cat]))]));
- return {key,scores,pass:Object.values(scores).every(s=>s>=90),contributors:runs.flatMap(r=>r.failedAudits).sort((a,b)=>b.savingsMs-a.savingsMs).slice(0,10)};
+ const seoAuditsPass=runs.length===3&&runs.every(r=>r.seoGate?.pass===true);
+ return {key,scores,seoAuditsPass,seoGate:runs.map(r=>({run:r.pass,...r.seoGate})),pass:Object.values(scores).every(s=>s>=90)&&seoAuditsPass,contributors:runs.flatMap(r=>r.failedAudits).sort((a,b)=>b.savingsMs-a.savingsMs).slice(0,10)};
 });
-const result={at:new Date().toISOString(),machine:'GitHub Actions ubuntu-latest; off-machine deciding verdict',origin,runs:rows.length,medians,pass:medians.length===6&&medians.every(r=>r.pass)};
+const result={at:new Date().toISOString(),machine:'GitHub Actions ubuntu-latest; off-machine deciding verdict',origin,runs:rows.length,seoException:rows[0]?.seoGate?.exception??null,medians,pass:rows.length===18&&medians.length===6&&medians.every(r=>r.pass)};
 await fs.writeFile(`${root}/medians.json`,JSON.stringify(result,null,2));
 console.log(JSON.stringify(result,null,2));
 if(!result.pass)process.exitCode=1;

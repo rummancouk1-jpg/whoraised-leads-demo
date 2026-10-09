@@ -8,7 +8,7 @@ on:
         type: string
   push:
     branches: [design/elevation]
-    paths: [.github/workflows/r2-preview-lighthouse.yml, scripts/design/lighthouse.mjs, scripts/r2/lighthouse-medians.mjs]
+    paths: [.github/workflows/r2-preview-lighthouse.yml, scripts/design/lighthouse.mjs, scripts/r2/lighthouse-medians.mjs, scripts/r2/lighthouse-policy.mjs]
 permissions:
   contents: read
 jobs:
@@ -19,6 +19,8 @@ jobs:
       GG_PREVIEW_URL: ${{ inputs.preview_url || secrets.GG_PREVIEW_URL }}
       GG_ACCESS_PASSWORD: ${{ secrets.GG_PREVIEW_ACCESS_PASSWORD }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      # Verified anonymous 401s are required before skipping only is-crawlable.
+      GG_LIGHTHOUSE_AUTH_GATED: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
