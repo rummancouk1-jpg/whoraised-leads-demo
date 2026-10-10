@@ -38,6 +38,8 @@ for(const theme of ['light','dark'])for(const motion of ['normal','reduce']){
  const check=async(label,work)=>{try{await work();row.checks.push(label);}catch(e){row.failures.push(label+': '+String(e.message).slice(0,1400));}};
  const ready=async route=>{await page.goto(origin+route);await page.locator('main').waitFor();await page.locator('.gg-sync-pill').first().waitFor({state:'attached'});await page.waitForTimeout(700);await page.evaluate(()=>document.fonts.ready);};
  const shot=async state=>{
+   const errors=await page.locator('main .gg-error').allTextContents();
+   if(errors.some(text=>text.trim()))row.failures.push(state+': visible error panel: '+errors.join('; '));
    await page.waitForTimeout(500);const violations=(await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa','best-practice']).analyze()).violations;
    const geometry=await page.evaluate(({reduce})=>{
      const faults=[],targets=[],dialog=document.querySelector('[role=dialog][aria-modal=true]');
