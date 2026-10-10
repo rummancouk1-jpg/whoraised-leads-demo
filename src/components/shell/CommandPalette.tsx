@@ -6,7 +6,9 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useOutreach } from "@/contexts/OutreachContext";
 import { useEmail } from "@/contexts/EmailContext";
 import { useUIState } from "@/contexts/UIContext";
-import { isExample } from "@/lib/outreach";
+import { generateDraft, isExample } from "@/lib/outreach";
+import { STAGES } from "@/types/outreach";
+import { useToast } from "@/contexts/ToastContext";
 import { useLogout } from "@/hooks/useLogout";
 import { ArrowIcon, SearchIcon } from "@/components/ui/Icons";
 
@@ -31,7 +33,8 @@ export function CommandPalette() {
 function PaletteDialog({ onClose }: { onClose: () => void }) {
   const logout = useLogout();
   const ui = useUIState();
-  const { leads, undoLast } = useOutreach();
+  const { leads, undoLast, moveStage, publicBaseUrl } = useOutreach();
+  const { toast } = useToast();
   const { refresh } = useEmail();
   const ref = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -60,16 +63,23 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
       { id: "refresh", group: "Actions", label: "Refresh email data", keywords: "instantly reload", run: close(() => void refresh()) },
       { id: "undo", group: "Actions", label: "Undo last stage move", hint: "⌘Z", run: close(() => undoLast()) },
       { id: "shortcuts", group: "Actions", label: "Keyboard shortcuts", hint: "?", keywords: "help keys", run: close(() => ui.setDialog("shortcuts")) },
+      { id: "board", group: "Views", label: "Switch to board", keywords: "pipeline view", run: close(() => { ui.setPipelineMode("board"); ui.go("/pipeline"); }) },
+      { id: "table", group: "Views", label: "Switch to table", keywords: "pipeline view", run: close(() => { ui.setPipelineMode("table"); ui.go("/pipeline"); }) },
       { id: "theme-system", group: "Appearance", label: "Appearance: follow system", keywords: "theme light dark", run: close(() => ui.setTheme("system")) },
       { id: "theme-light", group: "Appearance", label: "Appearance: light", keywords: "theme", run: close(() => ui.setTheme("light")) },
       { id: "theme-dark", group: "Appearance", label: "Appearance: dark", keywords: "theme night", run: close(() => ui.setTheme("dark")) },
-      ...ui.views.map<Item>(v => ({ id: `view-${v.id}`, group: "Views", label: `View: ${v.name}`, keywords: "filter saved", run: close(() => { ui.applyView(v.id); ui.go("/"); }) })),
+      ...ui.views.map<Item>(v => ({ id: `view-${v.id}`, group: "Views", label: `View: ${v.name}`, keywords: "filter saved", run: close(() => { ui.applyView(v.id); ui.go("/pipeline"); }) })),
     ];
+    const selected = real.find(l => l.tracked_slug === ui.selected);
+    if (selected) {
+      list.unshift(...STAGES.map<Item>(stage => ({ id: `stage-${stage}`, group: "Partner actions", label: `Change stage to ${stage}`, hint: selected.name, run: close(() => moveStage(selected.tracked_slug, stage)) })));
+      list.unshift({ id: "copy-draft", group: "Partner actions", label: "Copy outreach draft", hint: selected.name, run: close(() => { void navigator.clipboard.writeText(generateDraft(selected, publicBaseUrl)).then(() => toast({message:"Copied draft",duration:3000})).catch(() => toast({message:"Copy failed. Select the draft to copy manually.",tone:"error"})); }) });
+    }
     if (ui.installable) list.push({ id: "install", group: "Actions", label: "Install app", keywords: "home screen pwa", run: close(() => void ui.install()) });
     list.push({ id: "logout", group: "Account", label: "Log out", keywords: "sign out", run: close(() => void logout()) });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui.views, ui.installable, refresh, undoLast, logout]);
+  }, [ui.views, ui.installable, ui.selected, real, refresh, undoLast, moveStage, toast, logout, publicBaseUrl]);
 
   const items = useMemo<Item[]>(() => {
     const q = query.trim();

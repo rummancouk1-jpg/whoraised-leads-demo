@@ -1,5 +1,5 @@
 import { isPreviewBot, isTestClick, preregDestination } from "@/lib/click-tracking";
-import { recordClick } from "@/lib/server/clicks";
+import { recordClick, resolveTrackedSlug } from "@/lib/server/clicks";
 import { issueClickToken } from "@/lib/server/attribution-token";
 import { takeBudget, requestIdentity } from "@/lib/server/limits";
 
@@ -7,8 +7,12 @@ export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, max-age=0", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" };
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
-  const { slug } = await context.params;
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 200) return new Response("Invalid link", { status: 404, headers });
+  const { slug: requestedSlug } = await context.params;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(requestedSlug) || requestedSlug.length > 200) return new Response("Invalid link", { status: 404, headers });
+  let slug: string | undefined;
+  try { slug = await resolveTrackedSlug(requestedSlug); }
+  catch { return new Response("Please retry this link shortly.", { status: 503, headers }); }
+  if (!slug) return new Response("Link not found.", { status: 404, headers });
   let token: string | undefined;
   const agent = request.headers.get("user-agent") || "";
   const marker = request.headers.get("x-gg-test-click") || "";
@@ -29,8 +33,12 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 
 // HEAD checks never create clicks.
 export async function HEAD(request: Request, context: { params: Promise<{ slug: string }> }) {
-  const { slug } = await context.params;
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 200) return new Response(null, { status: 404, headers });
+  const { slug: requestedSlug } = await context.params;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(requestedSlug) || requestedSlug.length > 200) return new Response(null, { status: 404, headers });
+  let slug: string | undefined;
+  try { slug = await resolveTrackedSlug(requestedSlug); }
+  catch { return new Response(null, { status: 503, headers }); }
+  if (!slug) return new Response(null, { status: 404, headers });
   const location = new URL(preregDestination(slug, process.env.PREREG_URL || undefined, request.url));
   if (process.env.VERCEL_ENV === "preview" || process.env.GG_DB_ENVIRONMENT === "preview") location.searchParams.set("test","1");
   return new Response(null, { status: 302, headers: { ...headers, Location: location.toString() } });

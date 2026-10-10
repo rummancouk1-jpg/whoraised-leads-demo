@@ -16,6 +16,10 @@ export function StatusLine({ compact = false }: { compact?: boolean }) {
     email: snapshot ? "ready" : emailError || data ? "unavailable" : "loading", snapshot,
   });
   const Heading = compact ? "p" : "h1";
+  if (!compact) return <section className="gg-hero" aria-label="Campaign status" aria-busy={!line.text}>
+    <div className="status-line"><span className="chip"><span className={`gg-dot gg-dot-${line.tone}`} aria-hidden />{line.rest?.[0] ?? "Reading inbox status…"}</span><span className="chip">{line.rest?.[1] ?? "Reading campaign status…"}</span></div>
+    <h1 className="gg-hero-line" id="page-title">{summary ? <>{summary.queued ? `${summary.queued} ${summary.queued === 1 ? "partner" : "partners"} ready.` : summary.total ? "Every partner has a next step." : "Your next partners start here."} <span className="gg-hero-rest">{snapshot?.campaign ? line.rest?.[1] : "Outreach starts with the first campaign."}</span></> : <Skeleton className="gg-sk-hero" />}</h1>
+  </section>;
   return <section className={`gg-hero ${compact ? "gg-hero-compact" : ""}`} aria-label="Campaign status" aria-busy={line.text === null}>
     <p className="gg-hero-kicker"><span className={`gg-dot gg-dot-${line.tone}`} aria-hidden="true" />Campaign status
       {snapshot && <span className="gg-hero-fresh"> · <RelTime value={snapshot.fetchedAt} prefix={isLive ? "updated " : "saved snapshot from "} /></span>}

@@ -44,9 +44,9 @@ for (const [label, launch, device] of [['chrome', () => chromium.launch({ channe
   await c.addCookies([{ name, value, url: origin, httpOnly: true, secure: true, sameSite: 'Lax' }]);
   const p = await c.newPage();
   const step = async (title, fn) => { try { const detail = await fn(); rows.push({ label: `[${label}] ${title}`, status: 'PASS', detail }); } catch (e) { rows.push({ label: `[${label}] ${title}`, status: 'FAIL', error: JSON.stringify({ actual: e.actual, expected: e.expected, message: String(e.message).slice(0, 100) }).slice(0, 800) }); } };
-  await p.goto(origin + '/'); await expect(p.locator('.gg-name-button').first()).toBeVisible({ timeout: 45000 });
+  await p.goto(origin + '/'); await expect(p.locator('.leadrow').first()).toBeVisible({ timeout: 45000 });
   await step('service worker registers and activates', async () => { const state = await p.evaluate(async () => { const reg = await navigator.serviceWorker.ready; return { scope: reg.scope, active: !!reg.active }; }); assert.ok(state.active); assert.equal(state.scope, origin + '/'); return state; });
-  await p.reload(); await expect(p.locator('.gg-name-button').first()).toBeVisible({ timeout: 45000 });
+  await p.reload(); await expect(p.locator('.leadrow').first()).toBeVisible({ timeout: 45000 });
   await p.goto(origin + '/pipeline'); await expect(p.locator('.gg-pipeline-card').first()).toBeVisible({ timeout: 45000 }); await p.goto(origin + '/email'); await p.waitForTimeout(1500); await p.goto(origin + '/');
   await p.evaluate(() => fetch('/api/leads', { cache: 'no-store' }).then(r => r.json())); await p.waitForTimeout(800);
   await step('cache holds static assets only: no page, no API response, no RSC payload', async () => {
@@ -61,7 +61,7 @@ for (const [label, launch, device] of [['chrome', () => chromium.launch({ channe
     const text = await off.locator('body').innerText(); assert.ok(!/@gapgambler|queued|inbox/i.test(text)); await c.setOffline(false); await off.close(); return text.replace(/s+/g, ' ').slice(0, 90);
   });
   if (label === 'chrome') await step('Chromium reports no installability errors (ignoring Playwright’s private-context notice)', async () => { const cdp = await c.newCDPSession(p); const r = await cdp.send('Page.getInstallabilityErrors'); assert.deepEqual(r.installabilityErrors.filter(x => x.errorId !== 'in-incognito'), []); return 'none'; });
-  await p.goto(origin + '/'); await expect(p.locator('.gg-name-button').first()).toBeVisible({ timeout: 45000 });
+  await p.goto(origin + '/'); await expect(p.locator('.leadrow').first()).toBeVisible({ timeout: 45000 });
   await p.evaluate(() => { localStorage.setItem('gg-views-v1', '[]'); localStorage.setItem('gg-theme', '"dark"'); sessionStorage.setItem('x', '1'); });
   await step('logout clears caches, service workers and viewer storage; server session is revoked', async () => {
     await p.getByRole('button', { name: 'Log out', exact: true }).click(); await p.waitForURL(origin + '/login', { timeout: 20000 }); await p.waitForTimeout(500);

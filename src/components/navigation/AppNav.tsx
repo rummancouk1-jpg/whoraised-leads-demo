@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useLogout } from "@/hooks/useLogout";
 import { useUIState } from "@/contexts/UIContext";
 import { BoardIcon, HomeIcon, LogoutIcon, MailIcon, MoonIcon, SearchIcon, SunIcon, SystemIcon } from "@/components/ui/Icons";
+import { SyncPill } from "@/components/shell/SyncBanner";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", Icon: HomeIcon },
@@ -38,7 +39,7 @@ export function AppNav() {
         <div className="gg-topbar-inner">
           <Link href="/" prefetch={false} aria-label="GG Outreach home" className="gg-brand">
             <span className="gg-brand-mark" aria-hidden="true">GG</span>
-            <span className="gg-brand-name">GG Outreach</span>
+            <span className="gg-brand-name">GG Outreach<small>Earnings Tournament</small></span>
           </Link>
 
           <nav className="gg-nav" aria-label="Primary">
@@ -49,11 +50,12 @@ export function AppNav() {
           </nav>
 
           <div className="gg-topbar-actions">
+            <SyncPill />
             <button className="gg-search-trigger" onClick={() => setPalette(true)} aria-label="Search or run a command" aria-keyshortcuts="Control+K Meta+K">
               <SearchIcon /><span className="gg-search-text">Search or jump to…</span>{shortcut && <kbd className="gg-kbd" aria-hidden="true">{shortcut}</kbd>}
             </button>
             <button className="gg-icon-button" onClick={cycleTheme} aria-label={`Appearance: ${themeName}. Switch appearance`} title={`Appearance: ${themeName}`}><ThemeIcon /></button>
-            <button className="gg-logout" onClick={logout}><LogoutIcon /><span>Log out</span></button>
+            <button className="gg-logout" onClick={logout} aria-label="Log out"><LogoutIcon /><span>Log out</span></button>
           </div>
         </div>
       </header>

@@ -23,11 +23,11 @@ export function SyncBanner() {
 
 /** One-line sync health for the status line: a dot and plain words, with the time of the last good sync. */
 export function SyncPill() {
-  const { data } = useActivity();
+  const { data, syncing } = useActivity();
   const sync = data?.sync;
   if (!sync) return null;
   const tone = sync.state === "ok" || sync.state === "waiting" ? "ok" : sync.state === "never" ? "idle" : "warn";
-  return <span className="gg-sync-pill"><span className={`gg-dot gg-dot-${tone}`} aria-hidden="true" />
+  return <span className={`gg-sync-pill ${syncing ? "r3-syncing" : ""}`}><span className={`gg-dot gg-dot-${tone}`} aria-hidden="true" />
     {sync.state === "waiting" ? WAITING_FOR_CAMPAIGN : sync.state === "never" ? "Instantly not synced yet" : sync.state === "failing" ? <>Sync failing · last good <RelTime value={sync.lastOkAt} fallback="never" /></> : sync.state === "stale" ? <>Sync behind · last good <RelTime value={sync.lastOkAt} /></> : <>Synced <RelTime value={sync.lastOkAt} /></>}
   </span>;
 }

@@ -7,6 +7,7 @@ import { fitScore, leadGroup } from "@/lib/outreach";
 import { STAGES, type Lead, type Stage } from "@/types/outreach";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { GripIcon } from "@/components/ui/Icons";
+import { Avatar, Count, ScoreBar } from "@/components/ui/R3";
 
 const stageCoordinates: KeyboardCoordinateGetter = (event, { context, currentCoordinates }) => {
   if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(event.code)) return undefined;
@@ -22,9 +23,9 @@ function Card({ lead, onOpen, overlay = false }: { lead: Lead; onOpen: (lead: Le
   const { weights, moveStage } = useOutreach();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: overlay ? `overlay:${lead.tracked_slug}` : lead.tracked_slug, disabled: overlay });
   return <article ref={setNodeRef} className={`gg-pipeline-card ${isDragging ? "gg-drag-source" : ""}`} data-lead={lead.tracked_slug}>
-    <div className="gg-card-top"><span className="gg-avatar" aria-hidden>{lead.name.slice(0, 2).toUpperCase()}</span><button className="gg-card-name" onClick={() => onOpen(lead)}>{lead.name}<small>{lead.handle}</small></button><button ref={setActivatorNodeRef} className="gg-drag-handle" {...attributes} {...listeners} aria-label={`Drag ${lead.name}`} title="Drag to stage; keyboard: Space, arrows, Space"><GripIcon /></button></div>
+    <div className="gg-card-top"><Avatar lead={lead} /><button className="gg-card-name" onClick={() => onOpen(lead)}><span data-partner-name>{lead.name}</span><small>{lead.handle}</small></button><button ref={setActivatorNodeRef} className="gg-drag-handle" {...attributes} {...listeners} aria-label={`Drag ${lead.name}`} title="Drag to stage; keyboard: Space, arrows, Space"><GripIcon /></button></div>
     <div className="gg-card-tags"><span>{lead.platform}</span><span>{lead.niche}</span><span>{leadGroup(lead)}</span></div>
-    <div className="gg-card-footer"><div><small>Audience · Signups</small><strong>{lead.audience_size.toLocaleString()} · {lead.signups}</strong></div><span className="gg-score">{lead.priority_score ?? fitScore(lead, weights).score}</span></div>
+    <div className="gg-card-footer"><div><small>Audience · Signups</small><strong>{lead.audience_size.toLocaleString()} · {lead.signups}</strong></div><ScoreBar score={lead.priority_score ?? fitScore(lead, weights).score} /></div>
     <div className="gg-card-actions">
       <select className="gg-card-stage" aria-label={`Stage for ${lead.name}`} value={lead.stage} disabled={overlay} onChange={e => moveStage(lead.tracked_slug, e.target.value as Stage)}>{STAGES.map(s => <option key={s} value={s}>{s}</option>)}</select>
       <button className="gg-card-draft" onClick={() => onOpen(lead)}>Outreach draft ↗</button>
@@ -33,7 +34,7 @@ function Card({ lead, onOpen, overlay = false }: { lead: Lead; onOpen: (lead: Le
 }
 function Column({ stage, leads, onOpen }: { stage: Stage; leads: Lead[]; onOpen: (lead: Lead) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage:${stage}` });
-  return <section className={`gg-column ${isOver ? "gg-column-over" : ""}`} data-stage={stage} ref={setNodeRef} aria-label={`${stage}, ${leads.length} leads`}><h3><span className={`gg-stage-dot gg-stage-${stage.toLowerCase()}`} aria-hidden="true" />{stage}<span className="gg-column-count">{leads.length}</span></h3><div className="gg-column-body">{leads.map(l => <Card key={l.tracked_slug} lead={l} onOpen={onOpen} />)}{!leads.length && <p className="gg-column-empty">Drop a lead here, or import leads with stage {stage}.</p>}</div></section>;
+  return <section className={`gg-column ${isOver ? "gg-column-over" : ""}`} data-stage={stage} ref={setNodeRef} aria-label={`${stage}, ${leads.length} leads`}><h3><span className={`gg-stage-dot gg-stage-${stage.toLowerCase()}`} aria-hidden="true" />{stage}<span className="gg-column-count">{<Count value={leads.length} />}</span></h3><div className="gg-column-body">{leads.map(l => <Card key={l.tracked_slug} lead={l} onOpen={onOpen} />)}{!leads.length && <p className="gg-column-empty">Drop a lead here, or import leads with stage {stage}.</p>}</div></section>;
 }
 export function Board({ leads, onOpen }: { leads: Lead[]; onOpen: (lead: Lead) => void }) {
   const { moveStage } = useOutreach();

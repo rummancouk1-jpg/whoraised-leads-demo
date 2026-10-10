@@ -5,6 +5,7 @@ import type { Lead, Stage } from "@/types/outreach";
 import { navigateSession } from "@/lib/session-navigation";
 import { summarizeLeads, type LeadSummary } from "@/lib/summary";
 import { useToast } from "./ToastContext";
+import { flipCards } from "@/lib/presentation-motion";
 type Patch = Partial<Pick<Lead, "stage" | "notes" | "signups" | "last_touch">> & { expectedStage?: Stage };
 type Undo = { slug: string; name: string; from: Stage; to: Stage };
 async function request(url: string, options?: RequestInit) {
@@ -96,6 +97,7 @@ function useWorkspace(initialSummary: LeadSummary | null, initialLeads: Lead[] |
     const current = leadsRef.current.find(l => l.tracked_slug === entry.slug);
     if (!current || current.stage !== entry.to) { toast({ message: "This lead has changed since that move. Refresh it before undoing.", tone: "error" }); return; }
     undoStack.current = undoStack.current.filter(e => e !== entry);
+    flipCards();
     update(entry.slug, { stage: entry.from, expectedStage: entry.to });
     toast({ message: `Restoring ${entry.name} to ${entry.from}…`, duration: 4000 });
   }, [update, toast]);
@@ -105,8 +107,9 @@ function useWorkspace(initialSummary: LeadSummary | null, initialLeads: Lead[] |
     if (!lead || lead.stage === stage) return;
     const entry: Undo = { slug, name: lead.name, from: lead.stage, to: stage };
     undoStack.current = [...undoStack.current.slice(-9), entry];
+    flipCards();
     update(slug, { stage });
-    toast({ message: `Moved ${lead.name} to ${stage}`, actionLabel: "Undo", onAction: () => undoMove(entry) });
+    toast({ message: `Moved ${lead.name} to ${stage}`, actionLabel: "Undo", onAction: () => undoMove(entry), duration: 5000 });
   }, [update, toast, undoMove]);
   const undoLast = useCallback(() => {
     const entry = undoStack.current.at(-1);
@@ -126,11 +129,11 @@ function useWorkspace(initialSummary: LeadSummary | null, initialLeads: Lead[] |
     },
   };
 }
-type Workspace = ReturnType<typeof useWorkspace>;
+type Workspace = ReturnType<typeof useWorkspace> & { publicBaseUrl: string };
 const Context = createContext<Workspace | null>(null);
-export function OutreachProvider({ children, initialSummary = null, initialLeads = null }: { children: ReactNode; initialSummary?: LeadSummary | null; initialLeads?: Lead[] | null }) {
+export function OutreachProvider({ children, initialSummary = null, initialLeads = null, publicBaseUrl = "https://gg-tourney-hub.vercel.app" }: { children: ReactNode; initialSummary?: LeadSummary | null; initialLeads?: Lead[] | null; publicBaseUrl?: string }) {
   const workspace = useWorkspace(initialSummary, initialLeads);
-  return <Context.Provider value={workspace}>{children}</Context.Provider>;
+  return <Context.Provider value={{ ...workspace, publicBaseUrl }}>{children}</Context.Provider>;
 }
 export function useOutreach() {
   const context = useContext(Context);

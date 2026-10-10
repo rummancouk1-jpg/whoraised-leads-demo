@@ -20,6 +20,7 @@ function ToastItem({ toast, dismiss }: { toast: Toast; dismiss: (id: number) => 
   return <div className={`gg-toast ${toast.tone === "error" ? "gg-toast-error" : ""}`} role={toast.tone === "error" ? "alert" : "status"}
     onPointerEnter={() => setPaused(true)} onPointerLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
     <span className="gg-toast-message">{toast.message}</span>
+    {toast.actionLabel === "Undo" && <span className="r3-toast-progress" aria-hidden style={{ animationDuration: `${toast.duration ?? 8000}ms`, animationPlayState: paused ? "paused" : "running" }} />}
     {toast.actionLabel && <button className="gg-toast-action" onClick={() => { toast.onAction?.(); onDismiss(); }}>{toast.actionLabel}</button>}
     <button className="gg-toast-close" aria-label="Dismiss notification" onClick={onDismiss}><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" /></svg></button>
   </div>;

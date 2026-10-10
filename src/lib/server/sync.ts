@@ -28,7 +28,7 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
   const run = await sql`INSERT INTO gg_sync_runs(source,trigger) VALUES (${SOURCE},${trigger}) RETURNING id`;
   id = run[0].id;
     if (!process.env.INSTANTLY_API_KEY) throw new Error("Instantly is not connected. Ask the workspace owner to connect it.");
-    const campaign = await withInstantlyDeadline(async () => { await assertLeadScopes(); return selectCampaignId(); });
+    const campaign = await withInstantlyDeadline(() => selectCampaignId());
     let counts: Record<string, number | string> = { state: "WAITING", campaign: campaign.message || "none", matched: 0, sent: 0, opened: 0, replied: 0, bounced: 0 };
     if (!campaign.id) {
       // An authenticated, successful read with no selected campaign is healthy.
@@ -37,6 +37,7 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
       if (!committed.length) throw new Error("Instantly sync lease expired. Previous complete data is retained.");
     }
     if (campaign.id) {
+      await withInstantlyDeadline(() => assertLeadScopes());
       const leads = await getLeads();
       const checkpoint = await sql`SELECT state FROM gg_sync_checkpoints WHERE campaign=${campaign.id}`;
       const saved = checkpoint[0]?.state as ActivityCheckpoint | undefined;

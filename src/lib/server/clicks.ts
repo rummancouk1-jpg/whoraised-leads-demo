@@ -2,6 +2,13 @@ import "server-only";
 import { database, initializeDatabase } from "./db";
 import { isTestClick, platformGuess, safeReferrer } from "@/lib/click-tracking";
 
+/** Prefer exact IDs; a clean public alias resolves to its legacy ID for counting and tokens. */
+export async function resolveTrackedSlug(slug: string) {
+  await initializeDatabase();
+  const rows = await database()`SELECT slug FROM gg_leads WHERE slug=${slug} OR slug=${"preclient-" + slug} ORDER BY (slug=${slug}) DESC LIMIT 1`;
+  return rows[0]?.slug as string | undefined;
+}
+
 export async function recordClick(slug: string, agent: string, referrer: string, url?: string, marker = "", token?: string) {
   await initializeDatabase();
   // Unknown slugs are never counted. Group is captured at click time.

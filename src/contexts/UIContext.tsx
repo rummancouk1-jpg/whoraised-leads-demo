@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastContext";
 import { trackDialogTriggers } from "@/hooks/useFocusTrap";
+import { transitionPartner } from "@/lib/presentation-motion";
 
 export type Filters = { platform: string; niche: string; stage: string; kind: string; us_focus: string; band: string; minScore: string };
 export type ViewState = { search: string; filters: Filters; sort: string; showLongTail: boolean };
@@ -39,6 +40,7 @@ function useUI() {
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [palette, setPalette] = useState(false);
   const [view, setViewState] = useState<ViewState>(DEFAULT_VIEW);
+  const [pipelineMode, setPipelineMode] = useState<"board" | "table">("board");
   const [custom, setCustom] = useState<SavedView[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const [theme, setThemeState] = useState<Theme>("system");
@@ -69,7 +71,7 @@ function useUI() {
   }, []);
   const cycleTheme = useCallback(() => setTheme(theme === "system" ? "light" : theme === "light" ? "dark" : "system"), [theme, setTheme]);
   const openLead = useCallback((slug: string) => {
-    setSelected(slug);
+    transitionPartner(slug, () => setSelected(slug));
     setRecent(old => { const next = [slug, ...old.filter(s => s !== slug)].slice(0, 6); write(RECENT_KEY, next); return next; });
   }, []);
   const views = useMemo(() => [...BUILTIN_VIEWS, ...custom], [custom]);
@@ -94,7 +96,7 @@ function useUI() {
   }, [custom, toast]);
   const install = useCallback(async () => { const e = installEvent.current; if (!e) return; await e.prompt(); await e.userChoice; installEvent.current = null; setInstallable(false); }, []);
   const go = useCallback((path: "/" | "/pipeline" | "/email") => { setPalette(false); router.push(path); }, [router]);
-  return { selected, openLead, closeLead: useCallback(() => setSelected(null), []), dialog, setDialog, palette, setPalette, view, setView, setFilter, resetView, applyView, saveView, deleteView, views, custom, activeView, recent, theme, setTheme, cycleTheme, installable, install, go };
+  return { selected, openLead, closeLead: useCallback(() => setSelected(null), []), dialog, setDialog, palette, setPalette, view, setView, pipelineMode, setPipelineMode, setFilter, resetView, applyView, saveView, deleteView, views, custom, activeView, recent, theme, setTheme, cycleTheme, installable, install, go };
 }
 type UI = ReturnType<typeof useUI>;
 const Context = createContext<UI | null>(null);
