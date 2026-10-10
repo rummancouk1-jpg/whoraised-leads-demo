@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { database, initializeDatabase } from "@/lib/server/db";
-import { equal, issueSession, revokeSession, privateJson, sameOrigin, SESSION_COOKIE, SESSION_SECONDS } from "@/lib/server/auth";
+import { passwordMatches, issueSession, revokeSession, privateJson, sameOrigin, SESSION_COOKIE, SESSION_SECONDS } from "@/lib/server/auth";
 import { authenticated } from "@/lib/server/auth";
 import { readBody, RequestTooLarge, takeBudget } from "@/lib/server/limits";
 
 export async function POST(request: Request) {
   if (!request.headers.get("origin")) return privateJson({ error: "Please log in." }, 401);
   if (!sameOrigin(request)) return privateJson({ error: "Invalid request origin." }, 403);
-  if (!process.env.GG_ACCESS_PASSWORD || !process.env.GG_SESSION_SECRET) return privateJson({ error: "Private access is not configured." }, 503);
+  if (!process.env.GG_ACCESS_PASSWORD?.trim() || !process.env.GG_SESSION_SECRET) return privateJson({ error: "Private access is not configured." }, 503);
   try {
     await initializeDatabase();
     const identity = createHash("sha256").update(`${process.env.GG_SESSION_SECRET}:${request.headers.get("x-forwarded-for")?.split(",")[0] || "local"}`).digest("hex");
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const text = await readBody(request,4096);
     let password: unknown;
     try { if (text.length<=4096) password=JSON.parse(text)?.password; } catch { /* Invalid submissions count as failed attempts. */ }
-    if (typeof password !== "string" || !equal(password, process.env.GG_ACCESS_PASSWORD)) {
+    if (!passwordMatches(password)) {
       return privateJson({ error: "Incorrect password." }, 401);
     }
     (await cookies()).set(SESSION_COOKIE, await issueSession(), { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: SESSION_SECONDS, expires: new Date(Date.now()+SESSION_SECONDS*1000) });

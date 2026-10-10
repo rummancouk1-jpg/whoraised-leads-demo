@@ -15,6 +15,11 @@ function secret() {
 export function equal(a: string, b: string) {
   return timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 }
+/** Ignore accidental surrounding whitespace only for workspace password login. */
+export function passwordMatches(input: unknown): boolean {
+  const configured = process.env.GG_ACCESS_PASSWORD?.trim();
+  return typeof input === "string" && !!configured && equal(input.trim(), configured);
+}
 export async function issueSession() {
   const payload = `${Math.floor(Date.now() / 1000) + SESSION_SECONDS}.${randomBytes(16).toString("hex")}`;
   const token = `${payload}.${createHmac("sha256", secret()).update(payload).digest("hex")}`;
