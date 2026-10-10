@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {chromium,expect} from '@playwright/test';
-import {parseEnv,bypass,api,project} from './r2/infra.mjs';
+import {parseEnv,bypass,api} from './r2/infra.mjs';
 const origin=process.argv[2],mode=process.argv[3]||'stage';
 assert(origin?.startsWith('https://'));
 const env=parseEnv('.env.local'),headers=mode==='production'?{}:{'x-vercel-protection-bypass':bypass()};

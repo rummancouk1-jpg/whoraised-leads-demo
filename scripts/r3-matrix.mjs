@@ -6,9 +6,9 @@ import {parseEnv,bypass} from './r2/infra.mjs';
 const engine=process.argv[2]||'chrome', width=Number(process.argv[3]||390), origin=process.argv[4]||'http://localhost:3103';
 const root=(process.env.R3_MATRIX_ROOT||'evidence/r3/matrix')+'/'+engine+'-'+width;await fs.mkdir(root,{recursive:true});
 const env=parseEnv('.env.local'),headers=origin.startsWith('https:')?{'x-vercel-protection-bypass':bypass()}:{};
-const auth=await fetch(origin+'/api/auth',{method:'POST',headers:{...headers,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:env.GG_ACCESS_PASSWORD})});
-if(!auth.ok)throw new Error('Auth '+auth.status);
-const cookie=auth.headers.get('set-cookie').split(';')[0],split=cookie.indexOf('='),name=cookie.slice(0,split),value=cookie.slice(split+1);
+const auth=process.env.R3_SESSION_COOKIE?null:await fetch(origin+'/api/auth',{method:'POST',headers:{...headers,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:env.GG_ACCESS_PASSWORD})});
+if(auth&&!auth.ok)throw new Error('Auth '+auth.status);
+const cookie=process.env.R3_SESSION_COOKIE||auth.headers.get('set-cookie').split(';')[0],split=cookie.indexOf('='),name=cookie.slice(0,split),value=cookie.slice(split+1);
 const read=await fetch(origin+'/api/leads',{headers:{...headers,Cookie:cookie}}),initial=await read.json();
 if(!read.ok||!initial.leads.length)throw new Error('Real lead preflight failed');
 const browser=await (engine==='webkit'?webkit.launch():chromium.launch({channel:engine==='edge'?'msedge':'chrome'}));
@@ -100,7 +100,7 @@ for(const theme of ['light','dark'])for(const motion of ['normal','reduce']){
  }catch(e){row.failures.push('Flow: '+String(e.message).slice(0,1400));await page.screenshot({path:root+'/'+theme+'-'+motion+'-failure.png'}).catch(()=>{});}
  await context.unrouteAll({behavior:'ignoreErrors'});await context.close();row.pass=row.failures.length===0;rows.push(row);await fs.writeFile(root+'/results.json',JSON.stringify(rows,null,2));console.log(engine,width,theme,motion,row.pass?'PASS':'FAIL',row.failures.join('\n'));
 }
-}finally{await browser.close();await fetch(origin+'/api/auth',{method:'DELETE',headers:{...headers,Origin:origin,Cookie:cookie}});}
+}finally{await browser.close();if(!process.env.R3_SESSION_COOKIE)await fetch(origin+'/api/auth',{method:'DELETE',headers:{...headers,Origin:origin,Cookie:cookie}});}
 if(rows.some(r=>!r.pass))process.exitCode=1;
 
 
