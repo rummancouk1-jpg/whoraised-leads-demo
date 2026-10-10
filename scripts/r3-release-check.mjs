@@ -12,6 +12,7 @@ const read=async path=>{const r=await fetch(origin+path,{headers:{...headers,Coo
 const before=await read('/api/leads');assert.equal(before.leads.length,52);
 const sync=await fetch(origin+'/api/sync?manual=1',{method:'POST',headers:{...headers,Cookie:cookie,Origin:origin}});assert.equal(sync.status,200);const outcome=await sync.json();assert.equal(outcome.ok,true);
 const activity=await read('/api/activity');assert.equal(activity.sync.state,'waiting');assert.equal(activity.sync.lastError,null);
+const email=await read('/api/email'),emailAgain=await read('/api/email');assert.equal(email.error,'');assert(email.live);assert.equal(emailAgain.error,'');assert.equal(email.live.fetchedAt,emailAgain.live.fetchedAt,'provider reads shared across requests');
 const probes=[];
 for(const lead of before.leads){
  const slug=lead.tracked_slug,clean=slug.replace(/^preclient-/,'');
@@ -30,7 +31,7 @@ if(mode!=='production')await context.route('**/*',route=>{const r=route.request(
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 try{
  await page.goto(origin+'/login');await page.getByLabel('Workspace password',{exact:true}).fill(env.GG_ACCESS_PASSWORD);await page.getByRole('button',{name:/enter|log in|sign in|unlock/i}).click();await page.waitForURL(origin+'/');await expect(page.locator('.leadrow')).toHaveCount(5);await expect(page.locator('.gg-sync-pill')).toContainText('Waiting for first campaign');await expect(page.locator('.gg-sync-banner')).toHaveCount(0);await expect(page.locator('.checklist li').filter({hasText:'Partner list vetted'})).toContainText('52 / 52 verified');
- await page.goto(origin+'/pipeline');await page.locator('.gg-card-name').first().click();await expect(page.getByRole('dialog')).toBeVisible();await expect(page.locator('.r3-tracked a')).toHaveAttribute('href',/^https:\/\/gg-tourney-hub\.vercel\.app\/go\/(?!preclient-)/);await page.keyboard.press('Escape');await page.goto(origin+'/email');await page.locator('.inbox h3').first().waitFor();await expect(page.locator('.gg-sync-banner')).toHaveCount(0);assert.deepEqual(errors,[]);
+ await page.goto(origin+'/pipeline');await page.locator('.gg-card-name').first().click();await expect(page.getByRole('dialog')).toBeVisible();await expect(page.locator('.r3-tracked a')).toHaveAttribute('href',/^https:\/\/gg-tourney-hub\.vercel\.app\/go\/(?!preclient-)/);await page.keyboard.press('Escape');await page.goto(origin+'/email');await page.locator('.inbox h3').first().waitFor();await expect(page.getByRole('button',{name:'Refresh live data'})).toBeVisible();await expect(page.locator('.gg-sync-banner')).toHaveCount(0);await expect(page.locator('main .gg-error')).toHaveCount(0);assert.deepEqual(errors,[]);
  fs.mkdirSync('evidence/r3-release',{recursive:true});await page.screenshot({path:'evidence/r3-release/'+mode+'-login.png'});
  const deployment=api('/v13/deployments/'+new URL(origin).hostname);
  const report={at:new Date().toISOString(),origin,mode,commit:deployment.meta?.githubCommitSha,target:deployment.target,readyState:deployment.readyState,deploymentId:deployment.id,partners:52,sync:activity.sync.state,redirects:probes.length,clickHistoryUnchanged:true,browserLogin:true,runtimeErrors:errors};fs.writeFileSync('evidence/r3-release/'+mode+'-smoke.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
