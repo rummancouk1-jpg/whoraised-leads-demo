@@ -17,7 +17,8 @@ async function dbCheck() {
 /** GET /api/ohq/health — the OHQ Watch contract: JSON, bearer-only, counts-only, quick. */
 export async function ohqHealth() {
   const [db, sync] = await Promise.all([dbCheck(), currentSyncHealth().catch(() => null)]);
-  return { ok: db.ok && sync?.state === "ok", app: "gg-outreach", release: RELEASE_SHA, checks: { db, instantly_sync: sync ? { ok: sync.state === "ok", state: sync.state, last_ok_at: sync.lastOkAt, consecutive_failures: sync.consecutiveFailures } : { ok: false, state: "unreadable" } } };
+  const healthy = sync?.state === "ok" || sync?.state === "waiting";
+  return { ok: db.ok && healthy, app: "gg-outreach", release: RELEASE_SHA, checks: { db, instantly_sync: sync ? { ok: healthy, state: sync.state, last_ok_at: sync.lastOkAt, consecutive_failures: sync.consecutiveFailures } : { ok: false, state: "unreadable" } } };
 }
 /** GET /api/ohq/watch — release, health, counts-only errors and alerts, plus the sync and digest sections. */
 export async function ohqWatch() {
@@ -34,7 +35,7 @@ export async function ohqWatch() {
     release: { sha: RELEASE_SHA, deployed_at: STARTED, worker_head: null, mismatch: null },
     deploy_truth: { deployedSha: RELEASE_SHA, inSync: null },
     checks: { db: { ok: db.ok, checked_at: db.checked_at }, instantly_sync: sync ? { state: sync.state, last_ok_at: sync.lastOkAt, consecutive_failures: sync.consecutiveFailures } : null },
-    health: { ok: db.ok && sync?.state === "ok", db, instantly_sync: sync ? { state: sync.state, last_ok_at: sync.lastOkAt } : null },
+    health: { ok: db.ok && (sync?.state === "ok" || sync?.state === "waiting"), db, instantly_sync: sync ? { state: sync.state, last_ok_at: sync.lastOkAt } : null },
     errors_24h: errors.map(e => ({ fingerprint: e.fingerprint, name: e.name, surface: e.surface, route: e.route, release_sha: e.release_sha, role: "admin", count: e.count, first_seen: new Date(e.first_seen).toISOString(), last_seen: new Date(e.last_seen).toISOString(), status: "new" })),
     new_fingerprints_since_deploy: errors.filter(e => e.release_sha === RELEASE_SHA).map(e => e.fingerprint),
     alerts,

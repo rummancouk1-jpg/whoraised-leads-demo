@@ -6,6 +6,7 @@ export const FOLLOW_UP_DAYS = 5;
 /** Instantly is read on this cadence; a sync older than STALE_AFTER_MIN is called out on screen. */
 export const SYNC_INTERVAL_MIN = 15;
 export const STALE_AFTER_MIN = 40;
+export const WAITING_FOR_CAMPAIGN = "Waiting for first campaign";
 
 /** Per-lead engagement as last read from Instantly (timestamps are ISO strings or null). */
 export type LeadStats = {
@@ -17,8 +18,8 @@ export type LeadStats = {
 };
 export type SyncRun = { startedAt: string; finishedAt: string | null; ok: boolean | null; error: string | null; trigger: string; counts: Record<string, number | string> | null };
 export type SyncHealth = {
-  /** never: nothing has run · ok: last run succeeded and is recent · stale: last success is old · failing: the latest run failed */
-  state: "never" | "ok" | "stale" | "failing";
+  /** waiting: a recent successful read found no selected campaign; stale/failing still take precedence. */
+  state: "never" | "ok" | "waiting" | "stale" | "failing";
   lastOkAt: string | null; lastAttemptAt: string | null; lastError: string | null; failedSince: string | null; consecutiveFailures: number;
   /** What the last good run saw, e.g. matched leads. */
   counts: Record<string, number | string> | null;
@@ -95,12 +96,13 @@ export function syncHealth(runs: SyncRun[], now = Date.now()): SyncHealth {
   const observed = lastOk?.counts?.observedFrom;
   const okAt = typeof observed === "string" && Number.isFinite(Date.parse(observed)) ? observed : lastOk?.finishedAt ?? lastOk?.startedAt ?? null;
   let state: SyncHealth["state"] = "never";
-  if (latestRun) state = latestRun.ok === false ? "failing" : (ms(okAt) !== null && now - ms(okAt)! > STALE_AFTER_MIN * 60_000 ? "stale" : "ok");
+  if (latestRun) state = latestRun.ok === false ? "failing" : (ms(okAt) !== null && now - ms(okAt)! > STALE_AFTER_MIN * 60_000 ? "stale" : lastOk?.counts?.state === "WAITING" ? "waiting" : "ok");
   return { state, lastOkAt: okAt, lastAttemptAt: latestRun?.finishedAt ?? latestRun?.startedAt ?? null, lastError: latestRun?.ok === false ? latestRun.error : null, failedSince, consecutiveFailures, counts: lastOk?.counts ?? null };
 }
 
 /** Plain-language line for the sync indicator. Always says what was last read, never just a colour. */
 export function syncLabel(health: SyncHealth): string {
+  if (health.state === "waiting") return WAITING_FOR_CAMPAIGN;
   if (health.state === "never") return "Not synced yet";
   if (health.state === "failing") return "Sync failing";
   if (health.state === "stale") return "Sync is behind";

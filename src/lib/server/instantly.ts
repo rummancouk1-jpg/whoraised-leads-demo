@@ -3,6 +3,7 @@ import type { CampaignMetrics, EmailMetrics, SendDay } from "@/types/email";
 import { isWorkspaceInbox } from "./email-scope";
 import { takeBudget } from "./limits";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { WAITING_FOR_CAMPAIGN } from "@/lib/activity";
 const requestSignal = new AsyncLocalStorage<AbortSignal>();
 export function withInstantlyDeadline<T>(work: () => Promise<T>) { return requestSignal.run(AbortSignal.timeout(40000), work); }
 export const etDay = (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(now);
@@ -69,7 +70,7 @@ export async function fetchEmailMetrics(): Promise<EmailMetrics> {
   const configured = process.env.INSTANTLY_CAMPAIGN_ID;
   const matches = configured ? campaigns.filter(c => c.id === configured) : campaigns.filter(c => /gg outreach|gap gambler|earnings tournament/i.test(String(c.name)));
   let campaign: CampaignMetrics | null = null;
-  let campaignMessage = "No campaign yet";
+  let campaignMessage = WAITING_FOR_CAMPAIGN;
   let batches: SendDay[] = [];
   if (configured && !matches.length) throw new Error("Configured Instantly campaign was not found. Ask the workspace owner to select a campaign.");
   if (matches.length > 1) campaignMessage = "Multiple tournament campaigns found. Ask the workspace owner to select one.";

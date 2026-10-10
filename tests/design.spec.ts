@@ -12,8 +12,8 @@ test("status line: counts and send date come from data, never hard-coded", () =>
   expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(0, "2026-10-19") }) }).text).toBe("52 creators & communities queued · 8 inboxes warming · sending starts Oct 19");
   expect(buildStatusLine({ ...base, queued: 3, snapshot: snap({ campaign: campaign(0, "2026-11-02"), inboxes: [inbox("Active")] }) }).text).toBe("3 creators & communities queued · 1 inbox warming · sending starts Nov 2");
 });
-test("status line: no send date says the signup link is not live yet", () => {
-  expect(buildStatusLine({ ...base, snapshot: snap() }).text).toBe("52 creators & communities queued · 8 inboxes warming · sending starts once the signup link is live");
+test("status line: missing campaign waits, while an unscheduled draft makes no date promise", () => {
+  expect(buildStatusLine({ ...base, snapshot: snap() }).text).toBe("52 creators & communities queued · 8 inboxes warming · Waiting for first campaign");
   // A start date already in the past on a draft campaign is not a promise either.
   expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(0, "2026-09-01") }) }).rest?.at(-1)).toBe("sending starts once the signup link is live");
 });

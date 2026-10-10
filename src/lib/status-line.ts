@@ -1,5 +1,6 @@
 import type { EmailMetrics } from "@/types/email";
 import { shortDay } from "@/lib/time";
+import { WAITING_FOR_CAMPAIGN } from "./activity";
 
 export type StatusTone = "ok" | "info" | "warn" | "idle";
 export type StatusLine = {
@@ -49,7 +50,8 @@ export function buildStatusLine(input: StatusLineInput): StatusLine {
       const start = campaign?.startsOn;
       const scheduled = !!start && start >= snap.day;
       let send: string;
-      if (campaign && status === "2") { send = "campaign paused"; tone = "warn"; }
+      if (!campaign) send = WAITING_FOR_CAMPAIGN;
+      else if (status === "2") { send = "campaign paused"; tone = "warn"; }
       else if (campaign && status === "3") { send = "campaign completed"; tone = "idle"; }
       else if (campaign && ["1", "4"].includes(status) && !scheduled) { send = "sending now"; tone = "ok"; }
       else if (scheduled) send = `sending starts ${shortDay(start!)}`;

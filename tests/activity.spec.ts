@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { Lead } from "../src/types/outreach";
-import { buildQueue, buildTimeline, syncHealth, type LeadStats, type SyncRun } from "../src/lib/activity";
+import { buildQueue, buildTimeline, syncHealth, syncLabel, type LeadStats, type SyncRun } from "../src/lib/activity";
 import { mapInstantly } from "../src/lib/instantly-map";
 import { isSendWindow, nextMondayNineET, renderDigest, type DigestModel } from "../src/lib/digest";
 import { fingerprintOf, routeOf, scrub } from "../src/lib/error-scrub";
@@ -59,6 +59,13 @@ test("sync health: failing, stale and healthy are distinguished and failures are
   const failing = syncHealth([run(5, false, "Instantly read failed (HTTP 401)."), run(20, false, "x"), run(35, true)], NOW);
   expect(failing.state).toBe("failing"); expect(failing.consecutiveFailures).toBe(2); expect(failing.lastError).toContain("401"); expect(failing.counts).toEqual({ matched: 3 });
   expect(syncHealth([run(1, null), run(20, true)], NOW).state).toBe("ok");
+  const waiting = { ...run(5, true), counts: { state: "WAITING" } };
+  const health = syncHealth([waiting, run(20, false, "previous failure")], NOW);
+  expect(health).toMatchObject({ state: "waiting", lastError: null, consecutiveFailures: 0 });
+  expect(syncLabel(health)).toBe("Waiting for first campaign");
+  expect(syncHealth([waiting], NOW + 60 * 60_000).state).toBe("stale");
+  expect(syncHealth([run(1, false, "HTTP 500"), waiting], NOW).state).toBe("failing");
+  expect(syncHealth([run(1, true), waiting], NOW).state).toBe("ok");
 });
 
 test("Instantly mapping: counts, bounce, reply time and send events; unknown emails never attach", () => {

@@ -2,7 +2,7 @@
 
 import { useActivity } from "@/contexts/ActivityContext";
 import { RelTime } from "@/components/ui/RelTime";
-import { STALE_AFTER_MIN } from "@/lib/activity";
+import { STALE_AFTER_MIN, WAITING_FOR_CAMPAIGN } from "@/lib/activity";
 
 /** A visible warning whenever Instantly data cannot be trusted to be current. Silent when sync is healthy. */
 export function SyncBanner() {
@@ -26,8 +26,8 @@ export function SyncPill() {
   const { data } = useActivity();
   const sync = data?.sync;
   if (!sync) return null;
-  const tone = sync.state === "ok" ? "ok" : sync.state === "never" ? "idle" : "warn";
+  const tone = sync.state === "ok" || sync.state === "waiting" ? "ok" : sync.state === "never" ? "idle" : "warn";
   return <span className="gg-sync-pill"><span className={`gg-dot gg-dot-${tone}`} aria-hidden="true" />
-    {sync.state === "never" ? "Instantly not synced yet" : sync.state === "failing" ? <>Sync failing · last good <RelTime value={sync.lastOkAt} fallback="never" /></> : sync.state === "stale" ? <>Sync behind · last good <RelTime value={sync.lastOkAt} /></> : <>Synced <RelTime value={sync.lastOkAt} /></>}
+    {sync.state === "waiting" ? WAITING_FOR_CAMPAIGN : sync.state === "never" ? "Instantly not synced yet" : sync.state === "failing" ? <>Sync failing · last good <RelTime value={sync.lastOkAt} fallback="never" /></> : sync.state === "stale" ? <>Sync behind · last good <RelTime value={sync.lastOkAt} /></> : <>Synced <RelTime value={sync.lastOkAt} /></>}
   </span>;
 }

@@ -2,7 +2,7 @@
 
 import { useActivity } from "@/contexts/ActivityContext";
 import { RelTime } from "@/components/ui/RelTime";
-import { SYNC_INTERVAL_MIN } from "@/lib/activity";
+import { SYNC_INTERVAL_MIN, WAITING_FOR_CAMPAIGN } from "@/lib/activity";
 
 /** Data freshness, spelled out: what was last read from Instantly, whether the last attempt worked, and a way to retry. */
 export function SyncDetail() {
@@ -13,7 +13,7 @@ export function SyncDetail() {
     <div className="gg-list-heading"><h2 id="sync-title">Instantly sync</h2><span>Every {SYNC_INTERVAL_MIN} minutes</span></div>
     {!sync ? <p className="gg-muted">Loading sync status…</p> : <>
       <dl className="gg-facts gg-sync-facts">
-        <div><dt>Status</dt><dd>{sync.state === "ok" ? "Healthy" : sync.state === "never" ? "Not synced yet" : sync.state === "stale" ? "Behind schedule" : "Failing"}</dd></div>
+        <div><dt>Status</dt><dd>{sync.state === "waiting" ? WAITING_FOR_CAMPAIGN : sync.state === "ok" ? "Healthy" : sync.state === "never" ? "Not synced yet" : sync.state === "stale" ? "Behind schedule" : "Failing"}</dd></div>
         <div><dt>Last good sync</dt><dd>{sync.lastOkAt ? <RelTime value={sync.lastOkAt} /> : "Never"}</dd></div>
         <div><dt>Last attempt</dt><dd>{sync.lastAttemptAt ? <RelTime value={sync.lastAttemptAt} /> : "Never"}</dd></div>
         <div><dt>Page data read</dt><dd>{fetchedAt ? <RelTime value={fetchedAt} /> : "—"}</dd></div>

@@ -43,7 +43,7 @@ export async function loadAttribution(leads: Lead[], windowStart?: string): Prom
 export async function getActivity(known?: Lead[]): Promise<ActivityResponse> {
   const leads = known ?? await getLeads();
   const [loadedStats, sync, attribution, errors] = await Promise.all([loadStats(), currentSyncHealth(), loadAttribution(leads), recentErrors(24)]);
-  const stats = sync.lastError?.startsWith("Instantly has no selected campaign") ? {} : loadedStats;
+  const stats = sync.counts?.state === "WAITING" || sync.lastError?.startsWith("Instantly has no selected campaign") ? {} : loadedStats;
   return { generatedAt: new Date().toISOString(), sync, queue: buildQueue(leads, stats), stats, attribution, errors24h: errors.reduce((n, e) => n + e.count, 0) };
 }
 

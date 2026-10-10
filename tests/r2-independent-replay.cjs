@@ -15,7 +15,7 @@ const results = [];
 
 function harness(now = NOW) {
   const state = { stats: new Map(), events: new Map(), runs: [], signups: new Map(), clicks: [], requests: [],
-    remote: [], emails: [], fail: false, cycle: false, endless: false, noCampaign: false, paused: false,
+    remote: [], emails: [], accounts: [], daily: [], providerStatus: null, fail: false, cycle: false, endless: false, noCampaign: false, paused: false,
     gate: null, queue: [], transactionFail: false, audits: [], deliveries: 0, leases: new Map(), checkpoints: new Map(), digestClaims: new Map() };
   const leads = ['waiting','answered','bounced','quiet','auto','unsubscribed','joined','test-person'].map(slug => ({
     name: slug, handle: '@' + slug, tracked_slug: slug, contact: slug + '@creator.invalid', platform: 'YouTube',
@@ -23,6 +23,7 @@ function harness(now = NOW) {
     signups: 0, last_touch: '', notes: '' }));
   function execute(q) {
     const text = q.text.replace(/\s+/g, ' ').trim(), p = q.params;
+    if (text === 'SELECT 1') return [{value:1}];
     if (text.startsWith('SELECT') && text.includes('AS last_ok')) {
       const snapshot = [{ last_ok: state.runs.filter(r => r.ok).at(-1)?.finished_at ?? null,
         running: state.runs.filter(r => r.finished_at === null).length }];
@@ -69,10 +70,11 @@ function harness(now = NOW) {
     state.requests.push({path:u.pathname,query:u.search,body:init.body});
     const route=u.pathname.replace('/api/v2/','');const body=init.body?JSON.parse(init.body):{};
     const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json'}});
+    if(state.providerStatus)return json({error:'provider error'},state.providerStatus);
     if(state.fail && route==='emails' && u.searchParams.get('limit')!=='1')return json({error:'rate limit'},429);
     if(route==='campaigns')return json({items:state.noCampaign?[]:[{id:'gg-campaign',name:'GG Outreach'}]});
-    if(route==='accounts')return json({items:[]});
-    if(route==='accounts/analytics/daily')return json([]);
+    if(route==='accounts')return json({items:state.accounts});
+    if(route==='accounts/analytics/daily')return json(state.daily);
     if(route==='leads/list'&&body.limit===1||route==='emails'&&u.searchParams.get('limit')==='1')return json({items:[]});
     if(route==='leads/list'||route==='emails') {
       const cursor=body.starting_after??u.searchParams.get('starting_after');const rows=route==='leads/list'?state.remote:state.emails;

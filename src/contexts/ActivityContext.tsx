@@ -90,7 +90,7 @@ export function ActivityProvider({ children, initial = null }: { children: React
     if (!data) return null;
     const sync = {...data.sync};
     if (error) { sync.state="failing"; sync.lastError=error; }
-    else if(sync.state==="ok" && (!sync.lastOkAt || clock-Date.parse(sync.lastOkAt)>STALE_AFTER_MIN*60000)) sync.state="stale";
+    else if((sync.state==="ok" || sync.state==="waiting") && (!sync.lastOkAt || clock-Date.parse(sync.lastOkAt)>STALE_AFTER_MIN*60000)) sync.state="stale";
     return {...data,sync};
   },[data,error,clock]);
   const value = useMemo<ActivityState>(() => ({ data:visibleData, fetchedAt, error, syncing, refresh, syncNow }), [visibleData, fetchedAt, error, syncing, refresh, syncNow]);

@@ -29,10 +29,15 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
   id = run[0].id;
     if (!process.env.INSTANTLY_API_KEY) throw new Error("Instantly is not connected. Ask the workspace owner to connect it.");
     const campaign = await withInstantlyDeadline(async () => { await assertLeadScopes(); return selectCampaignId(); });
-    const leads = await getLeads();
-    let counts: Record<string, number | string> = { campaign: campaign.id ? "found" : campaign.message || "none", matched: 0, sent: 0, opened: 0, replied: 0, bounced: 0 };
-    if (!campaign.id) throw new Error("Instantly has no selected campaign. " + campaign.message);
+    let counts: Record<string, number | string> = { state: "WAITING", campaign: campaign.message || "none", matched: 0, sent: 0, opened: 0, replied: 0, bounced: 0 };
+    if (!campaign.id) {
+      // An authenticated, successful read with no selected campaign is healthy.
+      // Keep historical activity intact, but mark this observation as waiting.
+      const committed = await sql`UPDATE gg_sync_runs SET finished_at=now(), ok=true, counts=${JSON.stringify(counts)}::jsonb WHERE id=${id} AND EXISTS (SELECT 1 FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now()) RETURNING id`;
+      if (!committed.length) throw new Error("Instantly sync lease expired. Previous complete data is retained.");
+    }
     if (campaign.id) {
+      const leads = await getLeads();
       const checkpoint = await sql`SELECT state FROM gg_sync_checkpoints WHERE campaign=${campaign.id}`;
       const saved = checkpoint[0]?.state as ActivityCheckpoint | undefined;
       const { leads: remote, emails, observedFrom } = await withInstantlyDeadline(() => fetchCampaignActivity(campaign.id!, saved, async state => {

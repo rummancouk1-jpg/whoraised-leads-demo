@@ -2,7 +2,7 @@
 
 import { useOutreach } from "@/contexts/OutreachContext";
 import { useEmail } from "@/contexts/EmailContext";
-import { sendingState } from "@/lib/email-state";
+import { WAITING_FOR_CAMPAIGN } from "@/lib/activity";
 import { RelTime } from "@/components/ui/RelTime";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -21,6 +21,6 @@ export function StatusStrip() {
     <div><p>Inboxes warming</p><strong>{warming ? warming.length : failed || data ? "Awaiting data" : sk}</strong><small>{health.length ? `${Math.round(health.reduce((a, b) => a + b, 0) / health.length)}% average health · ${health.length}/${warming?.length} measured` : "Awaiting health metrics"}{snapshot && ` · ${isLive ? "Instantly" : "Saved snapshot"}`}</small><span className="gg-fresh">{snapshot && <RelTime value={snapshot.fetchedAt} prefix={isLive ? "Updated " : "Saved "} />}</span></div>
     <div><p>Outreach queued</p><strong>{summary ? summary.queued : error ? "Awaiting data" : sk}</strong><small>{summary ? `Priority: ${summary.priority} · Long tail: ${summary.longTail} · ${summary.groups.join(" · ")}` : "Awaiting shared workspace"}</small><span className="gg-fresh">{summary && savedAt && <RelTime value={savedAt} prefix="Updated " />}</span></div>
     <div><p>Tracked clicks</p><strong>{clicks ? clicks.groups.reduce((n, g) => n + g.clicks, 0) : sk}</strong><small>Creator link visits</small><span className="gg-fresh">{clicks && clicksAt && <RelTime value={clicksAt} prefix="Updated " />}</span></div>
-    <div><p>Campaign</p><strong>{snapshot ? snapshot.campaign ? labels[String(status)] ?? (status === undefined ? "Awaiting status" : `Status ${status}`) : snapshot.campaignMessage.startsWith("Multiple") ? "Selection required" : sendingState(snapshot) : failed || data ? "Awaiting data" : sk}</strong><small>{snapshot?.campaign?.name ?? (snapshot ? "Instantly snapshot" : "Awaiting Instantly data")}</small><span className="gg-fresh">{snapshot && <RelTime value={snapshot.fetchedAt} prefix={isLive ? "Updated " : "Saved "} />}</span></div>
+    <div><p>Campaign</p><strong>{snapshot ? snapshot.campaign ? labels[String(status)] ?? (status === undefined ? "Awaiting status" : `Status ${status}`) : snapshot.campaignMessage.startsWith("Multiple") ? "Selection required" : WAITING_FOR_CAMPAIGN : failed || data ? "Awaiting data" : sk}</strong><small>{snapshot?.campaign?.name ?? (snapshot ? "Instantly snapshot" : "Awaiting Instantly data")}</small><span className="gg-fresh">{snapshot && <RelTime value={snapshot.fetchedAt} prefix={isLive ? "Updated " : "Saved "} />}</span></div>
   </section>;
 }
