@@ -1,6 +1,6 @@
 # GG Tournament Oct — prelaunch audit
 
-Audit date: **October 12, 2026, Asia/Karachi**. API observations and tests: October 11, approximately 18:39–18:47 EDT (22:39–22:47 UTC), which is October 12 locally. Eastern dates below use America/New_York.
+Audit date: **October 12, 2026, Asia/Karachi**. Initial API observations and tests: October 11, approximately 18:39–18:47 EDT (22:39–22:47 UTC), which is October 12 locally. A subsequent user-authorized domain switch and new test batch are recorded below. Eastern dates below use America/New_York.
 
 Campaign: `e5b1841c-f9aa-44e4-a9bd-ccfc82bf25ef`, **GG Tournament Oct**. [Instantly campaign](https://app.instantly.ai/app/campaign/e5b1841c-f9aa-44e4-a9bd-ccfc82bf25ef/analytics).
 
@@ -28,8 +28,8 @@ FAIL includes a requirement that cannot be positively established. The initial a
 | 5. Step 3 content checks | PASS | PASS | 1 variant; only `{{registration_url}}`; **0 unresolved substitutions across 1,080 leads**; native unsubscribe URL and Austin footer present; no `{{prereg_link}}`; no `/rules`. |
 | 6. Variables actually used and greeting | PASS | PASS | Only **`{{registration_url}}`** occurs in subjects/bodies. All subjects are static; every step begins **“Hi there,”**. Neither `{{firstName}}` nor another name token is used. |
 | 6. Stored first-name quality, supplemental 30-lead sample | FAIL | FAIL | **6/30 suspected handles/non-person names**, **0 emoji**, **0 ALL CAPS**, **0 empty**; **7/30** contain the literal fallback `there`. This stored field is unused by the copy; no name records were changed. Details below distinguish subjective flags from mechanical checks. |
-| 7. Trader routing | PASS | PASS | **10/10 sampled**, and **224/224 total**, have `/go/email-trader` with the correct per-email SHA-256 `c` value. Current host remains `gg-tourney-hub.vercel.app`. |
-| 7. General routing | PASS | PASS | **10/10 sampled**, and **856/856 total**, have `/go/email-general` with the correct per-email SHA-256 `c` value. Current host remains `gg-tourney-hub.vercel.app`. |
+| 7. Trader routing | PASS | PASS | **10/10 sampled**, and **224/224 total**, have `/go/email-trader` with the correct per-email SHA-256 `c` value. Final host is **`go.gapgamblerteam.com`**, verified across all 224 trader leads. |
+| 7. General routing | PASS | PASS | **10/10 sampled**, and **856/856 total**, have `/go/email-general` with the correct per-email SHA-256 `c` value. Final host is **`go.gapgamblerteam.com`**, verified across all 856 general leads. |
 | 8. Lead count 1,080 | PASS | PASS | Fully paginated list: **1,080 records, 1,080 distinct normalized emails = 224 trader + 856 general**. |
 | 8. Instantly verification run established | FAIL | FAIL | `verification_status` is **absent on all 1,080 records**, including an individual lead GET. Read-only verification-status GETs for **30 sampled addresses returned 404/Not Found in all 30 cases**. No verification run/result is evidenced; treat the list as **not verified**, rather than asserting delivery validity. Full historical spending is not exposed by these responses. |
 | 8. Verification cost / no spend | PASS | PASS | Published bulk verification price: **0.25 credits/lead**, so **270 credits** for 1,080. Workspace: Free Trial credits **100 available / 100 total**, a **170-credit shortfall**. No paid credit plan or dollar purchase quote was returned. **0 credits spent by this audit**. |
@@ -58,7 +58,7 @@ The only unsubscribe URL in each body is Instantly's native `https://UNSUBSCRIBE
 
 ### Segment samples
 
-Samples are evenly spaced within each segment in API ID order. Record suffixes identify the sample without publishing contact addresses or click hashes. Every row has host `gg-tourney-hub.vercel.app`, the displayed path, and a `c` parameter equal to SHA-256 of its normalized email. Full-population validation also found **0 URL mismatches**.
+Samples are evenly spaced within each segment in API ID order. Record suffixes identify the sample without publishing contact addresses or click hashes. Initially every row had host `gg-tourney-hub.vercel.app`, the displayed path, and a `c` parameter equal to SHA-256 of its normalized email. The completed domain follow-up changed only the host to `go.gapgamblerteam.com`, preserving these paths and hashes. Initial and final full-population validation found **0 URL mismatches**.
 
 | Sample | Trader record suffix → `/go/email-trader` | Result | General record suffix → `/go/email-general` | Result |
 |---|---|---|---|---|
@@ -91,7 +91,7 @@ The first persisted snapshot was captured **Oct 6 at 17:13:15.073 UTC**, matchin
 
 The grid reads saved account scores; it does **not** reconstruct historical health from Instantly warmup traffic. The warmup API separately returns real sent/inbox/spam/received activity for **Oct 5–11 for all eight accounts**. That activity exists even where a dashboard score snapshot does not. Current adapter day keys use ET while the UI still labels them UTC; older saved rows predate that convention change. These are observed date labels, not proof of seven consistent UTC daily snapshots. No dashboard or snapshot code was modified under this task's limited fix scope.
 
-## B. Applied changes and pending domain switch
+## B. Applied changes and verified domain
 
 ### Copy and settings
 
@@ -112,26 +112,26 @@ The dashboard readiness predicate still requires the old Oct 16 deadline sentenc
 
 **PASS — domain added:** `go.gapgamblerteam.com` is attached to Vercel project **whoraised-leads-demo**, ID `prj_hmmvsjJtmK2Oour8oBpj3mBeMHL2`, with **no preview branch or custom environment binding** and no domain redirect. Production deployment is `dpl_J7bV5fJ35gCbkayeRGjdEZ8erAzb`, already serving the working `/go/` routes.
 
-**FAIL — DNS/HTTPS readiness:** Vercel reports `misconfigured = true`, no CNAME, no A values. HTTPS requests to both new-domain paths fail with DNS **ENOTFOUND**. Project-domain `verified = true` is an ownership flag; it does **not** mean DNS is configured or HTTPS works.
+**PASS — DNS/HTTPS readiness after the follow-up:** the user reports adding the CNAME in **Namecheap**. Vercel now reports **configured-correctly**, `misconfigured = false`, `configuredBy = CNAME`, and the exact target below. Google and Cloudflare public DNS both resolve it. Initial HTTPS handshakes failed because a certificate was not yet present; `vercel certs issue go.gapgamblerteam.com` successfully created renewable certificate **`cert_0xxa7IfkXmaIMGH8vhFhicwW`**, with 90 days remaining at issuance. Both paths then passed HTTPS certificate validation and returned the required 302 redirects.
 
-**Rumman must add this ONE exact record at Spaceship for gapgamblerteam.com:**
+**The ONE DNS record, now confirmed configured:**
 
 | Type | Host / Name | Value / Target |
 |---|---|---|
 | **CNAME** | **go** | **cfb19666fbf7d3a7.vercel-dns-017.com.** |
 
-This is the project-specific rank-1 target returned by Vercel. Use Spaceship's default TTL. No nameserver change or additional DNS record is requested.
+This is the project-specific rank-1 target returned by Vercel. The user's follow-up identifies Namecheap as the DNS provider. No nameserver change or additional DNS record was needed.
 
-**Pending:** the campaign still uses its working `gg-tourney-hub.vercel.app` links. No URL was switched before DNS verification. Once the new domain resolves, Vercel reports a valid configuration, and both HTTPS redirects pass, update the per-lead `registration_url` host to `go.gapgamblerteam.com` for **all 1,080 leads**, preserving segment paths and hashed `c` parameters. All three steps share this variable; there are no separate hardcoded segment links in the step bodies. This switch cannot be completed until the external DNS record is added and propagates.
+The two target registration paths are **`https://go.gapgamblerteam.com/go/email-trader`** and **`https://go.gapgamblerteam.com/go/email-general`**, with each lead's existing hashed `c` parameter retained. All three steps share `{{registration_url}}`; there are no separate hardcoded segment links in the step bodies. No lead URL was switched before DNS and HTTPS verification. The full-population update and readback are recorded in the follow-up section below.
 
 | Redirect check | Result | Actual |
 |---|---|---|
 | Current host `/go/email-trader` | PASS | HTTP **302** to `https://earningstournament.com`; `utm_source=email`, `utm_campaign=gg-oct`, `utm_content=trader`; `c` preserved. |
 | Current host `/go/email-general` | PASS | HTTP **302** to `https://earningstournament.com`; `utm_source=email`, `utm_campaign=gg-oct`, `utm_content=general`; `c` preserved. |
-| New host `/go/email-trader` | FAIL | DNS **ENOTFOUND**; cannot confirm an HTTPS redirect. |
-| New host `/go/email-general` | FAIL | DNS **ENOTFOUND**; cannot confirm an HTTPS redirect. |
+| New host `/go/email-trader` | PASS | Verified TLS, HTTP **302** to `https://earningstournament.com`; `utm_source=email`, `utm_campaign=gg-oct`, `utm_content=trader`; `c` preserved. |
+| New host `/go/email-general` | PASS | Verified TLS, HTTP **302** to `https://earningstournament.com`; `utm_source=email`, `utm_campaign=gg-oct`, `utm_content=general`; `c` preserved. |
 
-The existing redirects do not set `utm_medium`; the three UTMs above are present and correct. Audit requests and preview links carry `test=1`, so their clicks are identifiable as test traffic. No signup was submitted.
+Neither host's redirects set `utm_medium`; the three UTMs above are present and correct. Audit requests and preview links carry `test=1`, so their clicks are identifiable as test traffic. No signup was submitted. This machine's default DNS resolver retained its earlier negative response; successful HTTPS checks used Google DNS results corroborated by Cloudflare, retained the requested domain as hostname/SNI, and enforced normal TLS certificate validation. TLS validation was never bypassed.
 
 ### First-send capacity projection
 
@@ -147,7 +147,7 @@ The existing redirects do not set `utm_medium`; the three UTMs above are present
 
 `1080 / 240 = 4.5 sending days`; `240 / 8 = 30 first sends/hour`; the last 120 require four hours on day five. New-lead priority makes Step 1 precede due follow-ups while new leads remain. Daily capacity alone does not guarantee an exact delivery time: sender gaps, random waits, outages, or a later start can change it. If all 240/day are achieved, the fifth-day batch fits by **17:00 ET**. **While Paused, the actual completion date/time is undefined.** This estimate is not authorization to launch.
 
-## C. Exactly three fresh preview tests
+## C. Initial audit: exactly three fresh preview tests
 
 Following the authorized copy/settings fixes, `POST /api/v2/emails/test` was called **exactly once per step** for **rumman.co.uk1@gmail.com**, from `steve@gapgamblerteam.com`. Each returned HTTP success with **`{"status":"success"}`**. These are three fresh tests for this audit, separate from the earlier campaign-creation batch. A separate local ledger records each attempt before the request and prevents duplicate sends on rerun.
 
@@ -157,14 +157,37 @@ Following the authorized copy/settings fixes, `POST /api/v2/emails/test` was cal
 | 2 | You Can Still Join GG | general | 2026-10-11 22:44:00.243 |
 | 3 | One Last GG Invitation | trader | 2026-10-11 22:44:01.787 |
 
-Local times are **October 12, 03:43:58–03:44:01 Asia/Karachi**. The timestamps record request attempts; all three responses were accepted. Registration variables were explicitly resolved with the recipient's SHA-256 hash and `test=1`, using the current working host because custom-domain DNS was pending. Subjects and footers were preserved. The native unsubscribe marker was passed through; no fabricated unsubscribe signature was introduced. Preview unsubscribe behavior is not a live unsubscribe verification. API acceptance does not independently prove Gmail inbox placement or receipt. No extra tests were sent.
+Local times are **October 12, 03:43:58–03:44:01 Asia/Karachi**. The timestamps record request attempts; all three responses were accepted. Registration variables were explicitly resolved with the recipient's SHA-256 hash and `test=1`, using the then-working Vercel host because custom-domain DNS was pending. Subjects and footers were preserved. The native unsubscribe marker was passed through; no fabricated unsubscribe signature was introduced. Preview unsubscribe behavior is not a live unsubscribe verification. API acceptance does not independently prove Gmail inbox placement or receipt. This initial batch was not repeated; the user's subsequent request authorizes a separate new batch using the verified custom domain.
+
+## D. Custom-domain follow-up — completed October 12, 2026
+
+Following the user's confirmation that the CNAME was added in Namecheap, DNS and HTTPS were verified **before any lead URL was changed**. Vercel's domain configuration passed, Google and Cloudflare DNS agreed on the CNAME, and a valid renewable TLS certificate was issued. The last HTTPS recheck at **2026-10-11 23:04:37.284 UTC** confirmed both segment paths returned **302** with valid TLS and the expected `utm_source=email`, `utm_campaign=gg-oct`, and segment-specific `utm_content`. Existing click hashes and `test=1` were preserved through the redirect.
+
+**All 1,080 lead URLs were switched and read back successfully** at **2026-10-11 23:04:19.172 UTC = October 12 04:04:19 Asia/Karachi**:
+
+| Segment | Verified lead count | Final registration URL pattern |
+|---|---:|---|
+| Trader | 224 | `https://go.gapgamblerteam.com/go/email-trader?c=<existing SHA-256 hash>` |
+| General | 856 | `https://go.gapgamblerteam.com/go/email-general?c=<existing SHA-256 hash>` |
+
+Only each lead's `registration_url` host changed. Readback confirmed the segment paths, all click hashes, names, other payload fields, all three step subjects/bodies, and every preexisting campaign setting were preserved; the provider's update timestamp may change. All **3,240 lead/step renderings** resolved without residual placeholders. The campaign's paused state was checked before the update, every 50 leads, after the full readback, before each test, and after the new test batch. Final status is **2 / Paused**, with **0 campaign sends**, **0 contacted leads**, and **100 verification credits available**.
+
+As separately authorized by the follow-up, **exactly one NEW test per step** was sent to **rumman.co.uk1@gmail.com**, using the verified custom domain and the updated sequence. All three requests returned **`{"status":"success"}`**. A separate ledger prevents duplication of this new batch; the initial audit's tests were not rerun by their original script.
+
+| Step | Subject | Custom-domain path used | Request time (UTC) | API result |
+|---|---|---|---|---|
+| 1 | Join The GG Tournament | `/go/email-trader` | 2026-10-11 23:04:38.792 | Accepted |
+| 2 | You Can Still Join GG | `/go/email-general` | 2026-10-11 23:04:41.105 | Accepted |
+| 3 | One Last GG Invitation | `/go/email-trader` | 2026-10-11 23:04:43.561 | Accepted |
+
+These requests occurred **October 12 at 04:04:38–04:04:43 Asia/Karachi**. The recipient's hash and `test=1` were used in the test links. The native unsubscribe marker and Austin footer were preserved. API acceptance is confirmed; Gmail receipt/inbox placement was not independently inspected. No additional tests, activation, verification spend, or other campaign changes were made in this follow-up. The domain/link requirements now pass; the verification and literal timezone findings from the original audit remain open.
 
 ## Validation, references, and handling
 
-Validated campaign settings before and after the permitted PATCH, all eight account limits/warmup states, all 1,080 unique leads and segment hashes, all 3,240 template renderings, the 20 segment samples, the 30 name/status samples, production domain configuration, both working redirects, three preview responses, final zero campaign sends/contacts, and unchanged **100-credit** balance. No application source changes were made, so application build/test reruns were unnecessary.
+Validated campaign settings before and after the permitted PATCH, all eight account limits/warmup states, all 1,080 unique leads and segment hashes, all 3,240 template renderings, the 20 segment samples, the 30 name/status samples, production domain configuration, both working redirects, and the initial three preview responses. The follow-up additionally validated DNS/TLS, the full 1,080-lead domain update and readback, 3,240 final template renderings, exactly three newly authorized custom-domain tests, final zero campaign sends/contacts, and unchanged **100-credit** balance. No application source changes were made, so application build/test reruns were unnecessary.
 
 Raw API responses, contact data, credentials, and send ledgers remain only in the ignored `.env.gg-campaign-work/` directory. Only this report is included in the audit commit; preexisting uncommitted application changes are left intact. No API keys, session cookies, database URLs, or full recipient-list data are included here.
 
 Official references: [Campaign PATCH](https://developer.instantly.ai/api-reference/campaign/patch-campaign), [new-lead priority](https://help.instantly.ai/en/articles/6759494-how-to-prioritize-new-leads-over-follow-ups), [verification cost](https://help.instantly.ai/en/articles/6514690-how-to-verify-leads), [read-only verification status](https://developer.instantly.ai/api-reference/emailverification/check-an-email-verification-status), [preview test API](https://developer.instantly.ai/api-reference/email/send-a-test-email), [warmup analytics](https://developer.instantly.ai/api-reference/account/get-warmup-analytics), and [Vercel domain configuration](https://vercel.com/docs/domains/working-with-domains/add-a-domain).
 
-**NO-GO — custom-domain DNS/HTTPS and the dependent link switch remain pending; Instantly verification is not evidenced; the literal New_York timezone requirement is unmet. Keep the campaign Paused.**
+**NO-GO — Instantly lead verification is not evidenced, and the literal New_York timezone requirement is unmet. Keep the campaign Paused.**
