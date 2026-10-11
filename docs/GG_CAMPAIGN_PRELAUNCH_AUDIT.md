@@ -12,7 +12,7 @@ FAIL includes a requirement that cannot be positively established. The initial a
 
 | Item | Initial | After fixes | Actual value / evidence |
 |---|---|---|---|
-| 1. Exact schedule timezone `America/New_York` | FAIL | FAIL | Saved timezone is **`America/Detroit`**. It follows the same Eastern time/DST for this campaign, but is not the requested literal value. Instantly's API timezone enum includes Detroit and omits New_York. Schedule changes were outside the permitted fixes. |
+| 1. Schedule timezone: US Eastern | PASS | PASS | Saved timezone is **`America/Detroit`**, which uses the same US Eastern time and DST as **`America/New_York`** for this campaign. The user explicitly accepted this equivalence on October 12, 2026. The earlier literal-name failure is superseded; **no schedule or campaign setting was changed**. |
 | 1. Hours | PASS | PASS | `timing.from = 09:00`, `timing.to = 17:00`. |
 | 1. Every day | PASS | PASS | `days[0]` through `days[6]` are all `true`. |
 | 1. Start October 12 | PASS | PASS | `campaign_schedule.start_date = 2026-10-12`; no end date set. |
@@ -180,7 +180,7 @@ As separately authorized by the follow-up, **exactly one NEW test per step** was
 | 2 | You Can Still Join GG | `/go/email-general` | 2026-10-11 23:04:41.105 | Accepted |
 | 3 | One Last GG Invitation | `/go/email-trader` | 2026-10-11 23:04:43.561 | Accepted |
 
-These requests occurred **October 12 at 04:04:38–04:04:43 Asia/Karachi**. The recipient's hash and `test=1` were used in the test links. The native unsubscribe marker and Austin footer were preserved. API acceptance is confirmed; Gmail receipt/inbox placement was not independently inspected. No additional tests, activation, verification spend, or other campaign changes were made in this follow-up. The domain/link requirements now pass; the verification and literal timezone findings from the original audit remain open.
+These requests occurred **October 12 at 04:04:38–04:04:43 Asia/Karachi**. The recipient's hash and `test=1` were used in the test links. The native unsubscribe marker and Austin footer were preserved. API acceptance is confirmed; Gmail receipt/inbox placement was not independently inspected. No additional tests, activation, verification spend, or other campaign changes were made in this follow-up. The domain/link requirements now pass. The user subsequently accepted America/Detroit as equivalent US Eastern time, so the timezone requirement also passes without a settings change. Lead verification remains open.
 
 ## Validation, references, and handling
 
@@ -190,4 +190,4 @@ Raw API responses, contact data, credentials, and send ledgers remain only in th
 
 Official references: [Campaign PATCH](https://developer.instantly.ai/api-reference/campaign/patch-campaign), [new-lead priority](https://help.instantly.ai/en/articles/6759494-how-to-prioritize-new-leads-over-follow-ups), [verification cost](https://help.instantly.ai/en/articles/6514690-how-to-verify-leads), [read-only verification status](https://developer.instantly.ai/api-reference/emailverification/check-an-email-verification-status), [preview test API](https://developer.instantly.ai/api-reference/email/send-a-test-email), [warmup analytics](https://developer.instantly.ai/api-reference/account/get-warmup-analytics), and [Vercel domain configuration](https://vercel.com/docs/domains/working-with-domains/add-a-domain).
 
-**NO-GO — Instantly lead verification is not evidenced, and the literal New_York timezone requirement is unmet. Keep the campaign Paused.**
+**NO-GO — Instantly lead verification has not been completed. Keep the campaign Paused.**
