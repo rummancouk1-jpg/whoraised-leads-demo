@@ -8,6 +8,7 @@ import { DigestPreview } from "./DigestPreview";
 import { RelTime } from "@/components/ui/RelTime";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Count, Ring } from "@/components/ui/R3";
+import { BounceBrakeAlert } from "./BounceBrakeAlert";
 const value = (n: number | null | undefined) => n == null ? "Awaiting metrics" : n.toLocaleString();
 function rate(n: number | null, denominator: number | null) { return n === null || !denominator ? "—" : (100 * n / denominator).toFixed(1) + "%"; }
 export function EmailView() {
@@ -20,7 +21,7 @@ export function EmailView() {
   if (snapshot) byDay.set(snapshot.day, snapshot);
   const batches = [...new Map([...history.filter(s => s.metrics.campaign?.id === campaign?.id).flatMap(s => s.metrics.batches).reverse(), ...(snapshot?.batches ?? [])].map(b => [b.date, b])).values()].sort((a, b) => b.date.localeCompare(a.date));
   return <div className="gg-workspace r3-email"><main id="main" tabIndex={-1} aria-labelledby="page-title"><div className="gg-workspace-header"><div className="gg-container gg-header-content"><div><h1 id="page-title">Email</h1><p>Healthy inboxes. A considered sequence. Ready for launch.</p></div><button className="gg-button gg-secondary" disabled={busy} onClick={() => void refresh()}>{busy ? "Reading metrics…" : "Refresh live data"}</button></div></div><div className="gg-container gg-email-main">
-    <SyncBanner />{(error || data?.error) && <p role="alert" className="gg-error">{error || data?.error}</p>}
+    <BounceBrakeAlert /><SyncBanner />{(error || data?.error) && <p role="alert" className="gg-error">{error || data?.error}</p>}
     <p className="gg-storage-note">{snapshot ? <>{isLive ? "Live data fetched " : "Saved snapshot from "}<RelTime value={snapshot.fetchedAt} /> · {snapshot.day} UTC</> : "Reading Instantly metrics…"} · Read-only</p>
     <section aria-labelledby="inboxes-title"><div className="r3-section-head"><h2 id="inboxes-title">Sending inboxes</h2><span className="gg-muted">{snapshot?.inboxes.length ?? "—"} connected</span></div><div className="grid inboxes">
       {!snapshot && Array.from({length:4}, (_, i) => <div className="card inbox" key={i} aria-hidden><Skeleton className="r3-sk-ring" /><div><Skeleton className="gg-sk-name" /><Skeleton className="gg-sk-line" /></div></div>)}

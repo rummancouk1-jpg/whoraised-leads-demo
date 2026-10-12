@@ -4,7 +4,7 @@ Audit date: **October 12, 2026, Asia/Karachi**. Initial API observations and tes
 
 Campaign: `e5b1841c-f9aa-44e4-a9bd-ccfc82bf25ef`, **GG Tournament Oct**. [Instantly campaign](https://app.instantly.ai/app/campaign/e5b1841c-f9aa-44e4-a9bd-ccfc82bf25ef/analytics).
 
-**Safety rule satisfied:** initial and final API status `2` = **Paused**. No activate, launch, or resume endpoint was called. Final campaign analytics: **0 sent, 0 contacted**. Preview tests are separate from campaign sends. No verification, purchase, or credit-consuming enrichment endpoint was called. Available credits remained **100**.
+**Safety rule satisfied:** API status remains `2` = **Paused**. No activate, launch, resume, or credit-purchase endpoint was called. Campaign analytics remain **0 sent, 0 contacted**. Preview tests are separate from campaign sends. The initial audit and domain follow-up spent no verification credits; the subsequently authorized targeted verification in section E consumed the existing **100 credits**, leaving **0**. Current campaign lead count: **986**.
 
 ## A. Read-only audit and final readback
 
@@ -30,9 +30,9 @@ FAIL includes a requirement that cannot be positively established. The initial a
 | 6. Stored first-name quality, supplemental 30-lead sample | FAIL | FAIL | **6/30 suspected handles/non-person names**, **0 emoji**, **0 ALL CAPS**, **0 empty**; **7/30** contain the literal fallback `there`. This stored field is unused by the copy; no name records were changed. Details below distinguish subjective flags from mechanical checks. |
 | 7. Trader routing | PASS | PASS | **10/10 sampled**, and **224/224 total**, have `/go/email-trader` with the correct per-email SHA-256 `c` value. Final host is **`go.gapgamblerteam.com`**, verified across all 224 trader leads. |
 | 7. General routing | PASS | PASS | **10/10 sampled**, and **856/856 total**, have `/go/email-general` with the correct per-email SHA-256 `c` value. Final host is **`go.gapgamblerteam.com`**, verified across all 856 general leads. |
-| 8. Lead count 1,080 | PASS | PASS | Fully paginated list: **1,080 records, 1,080 distinct normalized emails = 224 trader + 856 general**. |
-| 8. Instantly verification run established | FAIL | FAIL | `verification_status` is **absent on all 1,080 records**, including an individual lead GET. Read-only verification-status GETs for **30 sampled addresses returned 404/Not Found in all 30 cases**. No verification run/result is evidenced; treat the list as **not verified**, rather than asserting delivery validity. Full historical spending is not exposed by these responses. |
-| 8. Verification cost / no spend | PASS | PASS | Published bulk verification price: **0.25 credits/lead**, so **270 credits** for 1,080. Workspace: Free Trial credits **100 available / 100 total**, a **170-credit shortfall**. No paid credit plan or dollar purchase quote was returned. **0 credits spent by this audit**. |
+| 8. Original lead count 1,080 | PASS | PASS | Initially **1,080 distinct emails = 224 trader + 856 general**. The later authorized cleanup removed **94 verified-invalid leads**, leaving **986**; section E records the current population. |
+| 8. Instantly verification evidence | FAIL | PASS — targeted scope | Initially no verification evidence. The user subsequently authorized the **400-lead strategy** in section E: **306 valid, 94 invalid removed**, no risky/catch-all/unknown results, **680 Gmail leads unverified**. This is not full-list verification. |
+| 8. Verification cost / spend | PASS | PASS | Full 1,080 verification would cost **270 credits**. The authorized targeted **400 × 0.25 = 100 credits** was completed using the existing balance; **0 credits remain**. No credits or plans were purchased. |
 | 9. Seven complete days of saved dashboard warmup snapshots | FAIL | FAIL | For the seven dates ending on the live ET date, **Oct 5–11**, only **Oct 6–10** have persisted rows (**40/56 inbox-day cells**). Live Oct 11 adds **8 measured cells**, leaving **8 empty cells on Oct 5**. The grid is populated, not wholly empty. No synthetic history was created. |
 
 ### Attached sending accounts
@@ -133,7 +133,7 @@ The two target registration paths are **`https://go.gapgamblerteam.com/go/email-
 
 Neither host's redirects set `utm_medium`; the three UTMs above are present and correct. Audit requests and preview links carry `test=1`, so their clicks are identifiable as test traffic. No signup was submitted. This machine's default DNS resolver retained its earlier negative response; successful HTTPS checks used Google DNS results corroborated by Cloudflare, retained the requested domain as hostname/SNI, and enforced normal TLS certificate validation. TLS validation was never bypassed.
 
-### First-send capacity projection
+### Original first-send capacity projection (before invalid-lead removal)
 
 **Conditional projection: Friday, October 16, 2026, approximately 13:00 EDT (America/New_York, UTC−04:00).** Assumptions: later-authorized start **Oct 12 at 09:00 ET**, all eight inboxes continuously available, **240 first sends/day**, seven-day schedule, new-lead priority enabled, and volume evenly paced across the eight-hour 09:00–17:00 window.
 
@@ -146,6 +146,8 @@ Neither host's redirects set `utm_medium`; the three UTMs above are present and 
 | Fri Oct 16 | 120 | 1,080 | 0 |
 
 `1080 / 240 = 4.5 sending days`; `240 / 8 = 30 first sends/hour`; the last 120 require four hours on day five. New-lead priority makes Step 1 precede due follow-ups while new leads remain. Daily capacity alone does not guarantee an exact delivery time: sender gaps, random waits, outages, or a later start can change it. If all 240/day are achieved, the fifth-day batch fits by **17:00 ET**. **While Paused, the actual completion date/time is undefined.** This estimate is not authorization to launch.
+
+After the 94 invalid removals, the same hypothetical start and uniform pacing put the last **26 of 986** first sends at approximately **October 16, 09:52 ET**. The campaign remains Paused, so this is also conditional.
 
 ## C. Initial audit: exactly three fresh preview tests
 
@@ -182,12 +184,69 @@ As separately authorized by the follow-up, **exactly one NEW test per step** was
 
 These requests occurred **October 12 at 04:04:38–04:04:43 Asia/Karachi**. The recipient's hash and `test=1` were used in the test links. The native unsubscribe marker and Austin footer were preserved. API acceptance is confirmed; Gmail receipt/inbox placement was not independently inspected. No additional tests, activation, verification spend, or other campaign changes were made in this follow-up. The domain/link requirements now pass. The user subsequently accepted America/Detroit as equivalent US Eastern time, so the timezone requirement also passes without a settings change. Lead verification remains open.
 
+## E. Targeted verification and invalid-only cleanup
+
+Completed **October 12, 2026, 00:18:28 UTC / 05:18:28 Asia/Karachi**. The initial live API list contained **721 Gmail leads and 359 non-Gmail leads**. Gmail means the address domain is `gmail.com` or `googlemail.com`; custom domains, including Google Workspace addresses, are in the non-Gmail group and were fully checked.
+
+The verification order was: one non-Gmail canary to confirm the **0.25-credit** charge, the other **358 non-Gmail leads**, then the **41-lead Gmail sample**. The first group finished before any Gmail verification request. Checks used documented API v2 `verify_leads_on_import` in isolated, non-sending lead lists. The campaign itself was never started. Verification-list results were mapped back to original campaign IDs and normalized emails before deletion; those lists remain available as verification evidence.
+
+**Random sample seed:** `gg-oct-2026-10-12-a7a0c03c94f8b7b4c836f3094004778c`.
+
+**Reproduction:** sort all 721 Gmail leads by the hexadecimal SHA-256 of `seed + "\n" + normalized email`, ascending; select the first 41. This is a seeded random ordering with no duplicate selections. Sample membership and raw responses remain in ignored private work files.
+
+| Group | Verified | Valid | Invalid | Catch-all kept | Risky kept | Unknown kept | Invalid % |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| All non-Gmail | 359 | 265 | 94 | 0 | 0 | 0 | **26.18%** |
+| Random Gmail sample | 41 | 41 | 0 | 0 | 0 | 0 | **0.00%** |
+| Total checked | **400** | **306** | **94** | **0** | **0** | **0** | 23.50% |
+
+Only explicit `verification_status = -1` (**Invalid**) results were deleted. The deletion request specified **this campaign ID and the exact 94 original lead IDs**, with a limit of 94. Readback verified **986 remaining leads**, absence of every removed ID, preservation of every other lead and payload, and status **Paused**. No catch-all, risky, unknown, or unverified lead was removed.
+
+**Result: valid 306 / removed 94 / kept-risky 0**; separately, catch-all kept **0**, unknown kept **0**, and **680 Gmail leads remain unverified**. Final campaign count: **986 = 306 verified-valid + 680 unverified Gmail**. Credit balance: **100 before → 0 after**, exactly **100 spent**; no credits purchased.
+
+**Projection:** Gmail-sample invalid fraction = `0 / 41 = 0%`. Applying that fraction to the 680 unverified Gmail leads gives a **0% point estimate** for that remainder and `680 × (0/41) / 986 = 0%` for the remaining campaign overall. These are verification-based proxies for delivery bounces, not observed bounce rates. A 41-lead sample with zero invalids does not prove zero bounce risk; valid addresses can also bounce for reasons verification does not capture. The requested **point-estimate >3% stop gate did not trip**, so the bounce brake was implemented.
+
+## F. Pause-only bounce brake
+
+**Deployed:** production `dpl_FRKC4qKJM6zpA8PKmfaSgp3Xj9Hv`, serving [the Email view](https://gg-tourney-hub.vercel.app/email).
+
+`POST /api/cron/bounce-brake` requires `Authorization: Bearer <GG_BOUNCE_BRAKE_SECRET>`. A dedicated sensitive secret was installed in Vercel Production and GitHub Actions without putting its value in source, workflow content, screenshots, or this report. Proxy and route both enforce authorization. The endpoint is fixed to **GG Tournament Oct**, checks its configured campaign ID and production environment, and obtains uncached `emails_sent_count` and `bounced_count` from Instantly API v2 campaign overview. Missing, fractional, negative, or impossible counters fail rather than becoming zero.
+
+Automatic checks call `POST /api/v2/campaigns/{id}/pause` only when **sent ≥50 AND bounced/sent >0.03** and verify status `2` afterward. The separately requested one-time auth proof is allowed only while the campaign is already Paused and is logged separately from breaches. A database lease prevents overlapping checks. Every check is recorded in the existing `gg_internal_audit` table; a threshold breach is recorded before the pause request and updated after confirmation. Failed/unconfirmed pauses remain visible as red alerts. Repeated checks of the same already-confirmed paused breach do not send duplicate pause calls. **There is no resume operation. Only Rumman resumes in Instantly.**
+
+`GET /api/email/bounce-brake` requires the existing authenticated dashboard session. Email polls it every 30 seconds and displays the stored breach as a red alert with counts, rate, time in ET, and the instruction that only Rumman resumes. Unavailable, failed, or overdue recorded checks also show a warning. This brake reads Instantly directly; it does not depend on the separate lead-pagination sync, whose existing warning was visible during visual QA.
+
+### Free 15-minute scheduler
+
+Vercel reports **Hobby**, which allows daily rather than 15-minute crons. The repository is **public**, GitHub Actions is enabled, and a standard `ubuntu-latest` runner is free for public repositories. The installed [GG bounce brake workflow](https://github.com/rummancouk1-jpg/whoraised-leads-demo/blob/main/.github/workflows/gg-bounce-brake.yml) runs at **:07, :22, :37, :52 each hour**, with a secret header, no checkout, no token permissions, a three-minute timeout, and concurrency control. The workflow is installed on the default branch (`main`), as required for scheduled events. GitHub schedules are best-effort and may be delayed; this is not an exact 15-minute execution SLA.
+
+The scheduler-only default-branch commit is **`9c9ed4a0020a266c97388023b09ba2a37a5b5c89`**. A temporary Vercel Ignored Build Step matched only that exact commit message, preventing the older main application checkout from replacing production. GitHub's Vercel status confirmed **“Canceled by Ignored Build Step”**; the previous ignore setting (`null`) was then restored. The current application was deployed separately from the working checkout. No plan upgrade or paid runner was used.
+
+### Proof
+
+| Check | Result | Evidence |
+|---|---|---|
+| 49 sends, rate above threshold | PASS — no pause | Unit test `shouldPauseCampaign(49, 0.5) = false`. |
+| 50 sends, exactly 3% | PASS — no pause | Unit test `shouldPauseCampaign(50, 0.03) = false`. |
+| 50 sends, 3.1% | PASS — pause | Unit test `shouldPauseCampaign(50, 0.031) = true`. These rate-boundary tests are conceptual; live bounced counts must be integers. |
+| 0 sends | PASS — no pause | Unit test `shouldPauseCampaign(0, 0) = false`. |
+| Real integer counter boundaries and malformed input | PASS | 100/3 does not trip; 100/4 trips; unavailable, fractional and impossible counters throw. |
+| Missing / incorrect bearer | PASS | Both live requests returned **401**. |
+| Live pause API auth on already-paused campaign | PASS | Production proof at **2026-10-12 00:26:35 UTC** returned **HTTP 200**, `authProof=true`, sent **0**, bounced **0**; status remained **2**. A persistent proof ledger permits the native pause request only once and does not create a false breach alert. |
+| Red alert at 390 / 820 / 1440, normal and reduced motion | PASS — **6/6** | Captures and geometry checks in local `evidence/gg-bounce-brake/`; all visually inspected for wrapping, clipping and overflow. Reduced-motion alert has no animation or transition. |
+| GitHub runner → live endpoint, secret and network path | PASS | [Manual connectivity run 38188781910](https://github.com/rummancouk1-jpg/whoraised-leads-demo/actions/runs/38188781910), October 12 00:38:29 UTC, succeeded with `ok=true`, sent/bounced **0/0** and `authProof=false`. This did not issue another native pause and is **not** scheduled-run proof. |
+| Genuine scheduled invocation | PENDING | Waiting for a successful GitHub run with event `schedule`; a manual invocation is not accepted as scheduler proof. |
+
+UI proof uses a clearly labeled **browser-only fixture: 200 sent / 10 bounced (5%)**. No fake campaign send, bounce, or production alert was created. Source, TypeScript, production build, threshold tests, live endpoint protection, and the already-paused auth proof passed. Local [UI results](../evidence/gg-bounce-brake/ui-results.json) list all six captures, including [390 px reduced motion](../evidence/gg-bounce-brake/alert-390-reduce.png), [820 px reduced motion](../evidence/gg-bounce-brake/alert-820-reduce.png), and [1440 px reduced motion](../evidence/gg-bounce-brake/alert-1440-reduce.png). These artifacts are intentionally retained under the repository's ignored evidence directory.
+
+Official scheduler references: [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing), [GitHub public-runner billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [scheduled workflow behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Verification references: [bulk import verification flag](https://developer.instantly.ai/api-reference/lead/add-leads-in-bulk-to-a-campaign-or-list), [0.25-credit verification pricing](https://help.instantly.ai/en/articles/6514690-how-to-verify-leads).
+
 ## Validation, references, and handling
 
-Validated campaign settings before and after the permitted PATCH, all eight account limits/warmup states, all 1,080 unique leads and segment hashes, all 3,240 template renderings, the 20 segment samples, the 30 name/status samples, production domain configuration, both working redirects, and the initial three preview responses. The follow-up additionally validated DNS/TLS, the full 1,080-lead domain update and readback, 3,240 final template renderings, exactly three newly authorized custom-domain tests, final zero campaign sends/contacts, and unchanged **100-credit** balance. No application source changes were made, so application build/test reruns were unnecessary.
+The initial audit and domain follow-up validated settings, all eight inboxes, the original 1,080 leads and segment hashes, 3,240 template renderings, sample data quality, redirects and the two separately authorized three-test batches. Targeted verification subsequently checked 400 leads, removed exactly 94 explicit invalids, and verified the final 986-lead population and 100-credit spend. The bounce-brake work passed TypeScript, the production build, both unit tests (including all requested boundaries and malformed counters), live authorization checks, the single already-paused native pause proof, and six visually reviewed UI cases. Both custom-domain redirects were rechecked after deployment and still pass with their UTMs and click hashes.
 
-Raw API responses, contact data, credentials, and send ledgers remain only in the ignored `.env.gg-campaign-work/` directory. Only this report is included in the audit commit; preexisting uncommitted application changes are left intact. No API keys, session cookies, database URLs, or full recipient-list data are included here.
+Raw API responses, contact data, credentials, and send ledgers remain only in the ignored `.env.gg-campaign-work/` directory. The new commit includes bounce-brake source, workflow, tests, UI verification script, empty environment-variable documentation, and this report. Preexisting uncommitted application changes are left intact; only the new alert import/render is staged from the already-modified Email view. Local QA captures stay in ignored `evidence/gg-bounce-brake/`. Staged files are scanned against known credentials; no API keys, bearer secrets, session cookies, database URLs, or full recipient-list data are committed.
 
 Official references: [Campaign PATCH](https://developer.instantly.ai/api-reference/campaign/patch-campaign), [new-lead priority](https://help.instantly.ai/en/articles/6759494-how-to-prioritize-new-leads-over-follow-ups), [verification cost](https://help.instantly.ai/en/articles/6514690-how-to-verify-leads), [read-only verification status](https://developer.instantly.ai/api-reference/emailverification/check-an-email-verification-status), [preview test API](https://developer.instantly.ai/api-reference/email/send-a-test-email), [warmup analytics](https://developer.instantly.ai/api-reference/account/get-warmup-analytics), and [Vercel domain configuration](https://vercel.com/docs/domains/working-with-domains/add-a-domain).
 
-**NO-GO — Instantly lead verification has not been completed. Keep the campaign Paused.**
+**NO-GO — targeted verification passed, but a genuine scheduled bounce-brake run is still awaiting proof. Keep the campaign Paused.**
