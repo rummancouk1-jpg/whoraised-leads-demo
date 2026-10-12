@@ -1,0 +1,27 @@
+name: GG bounce brake
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: gg-bounce-brake
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check campaign bounce rate and pause if needed
+        env:
+          APP_URL: https://gg-tourney-hub.vercel.app
+          CRON_SECRET: ${{ secrets.GG_BOUNCE_BRAKE_SECRET }}
+          TRIGGER: ${{ github.event_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" \
+            -H "X-GG-Trigger: $TRIGGER" -H "X-GG-Run-ID: $RUN_ID" \
+            "$APP_URL/api/cron/bounce-brake"
