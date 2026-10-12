@@ -9,4 +9,9 @@ export function bounceCounts(sent: unknown, bounced: unknown) {
   return { sent, bounced, rate, breach: shouldPauseCampaign(sent, rate) };
 }
 export type BounceAlert = { at: string; sent: number; bounced: number; rate: number; status: "paused" | "pause-requested" | "pause-unconfirmed" };
-export type BounceBrakeStatus = { alert: BounceAlert | null; lastCheck: { at: string; ok: boolean; sent?: number; bounced?: number } | null };
+export type BrakeCheck = { at: string; ok: boolean; sent?: number; bounced?: number; campaignStatus?: number };
+export type BounceBrakeStatus = { alert: BounceAlert | null; lastCheck: BrakeCheck | null; lastSuccess: BrakeCheck | null };
+export function brakeIsStale(lastSuccess: BrakeCheck | null | undefined, now = Date.now()) {
+  const at = Date.parse(lastSuccess?.at ?? "");
+  return !Number.isFinite(at) || now - at > 30 * 60000;
+}

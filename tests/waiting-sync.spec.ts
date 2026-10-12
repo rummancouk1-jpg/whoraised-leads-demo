@@ -46,3 +46,22 @@ for (const status of [401, 403, 500]) test(`real API ${status} stays a failure e
   expect(await h.sync().currentSyncHealth()).toMatchObject({ state: "failing", consecutiveFailures: 1 });
   expect((await h.load("src/lib/server/ohq.ts").ohqHealth()).ok).toBe(false);
 });
+
+test("12-page budget hands off with 202, retains complete data, and resumes to success", async () => {
+  const h = harness();
+  fixture(h, 3);
+  h.state.remote = Array.from({ length: 26 }, (_, i) => ({ id: String(i), email: `lead${i}@creator.invalid`, status: 1 }));
+  h.env.CRON_SECRET = "fixture-cron";
+  const request = () => new Request("https://fixture.invalid/api/cron/instantly-sync", { headers: { Authorization: "Bearer fixture-cron" } });
+  const route = h.load("src/app/api/cron/instantly-sync/route.ts");
+  const first = await route.GET(request());
+  expect(first.status).toBe(202);
+  expect(await first.json()).toMatchObject({ ok: false, pending: true });
+  expect(h.state.runs[0]).toMatchObject({ ok: null, counts: { state: "PENDING" } });
+  expect(h.state.checkpoints.size).toBe(1);
+  expect(h.state.stats.size).toBe(0);
+  const second = await route.GET(request());
+  expect(second.status).toBe(200);
+  expect(await second.json()).toMatchObject({ ok: true, counts: { instantlyLeads: 26 } });
+  expect(h.state.checkpoints.size).toBe(0);
+});

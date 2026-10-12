@@ -251,4 +251,42 @@ Raw API responses, contact data, credentials, and send ledgers remain only in th
 
 Official references: [Campaign PATCH](https://developer.instantly.ai/api-reference/campaign/patch-campaign), [new-lead priority](https://help.instantly.ai/en/articles/6759494-how-to-prioritize-new-leads-over-follow-ups), [verification cost](https://help.instantly.ai/en/articles/6514690-how-to-verify-leads), [read-only verification status](https://developer.instantly.ai/api-reference/emailverification/check-an-email-verification-status), [preview test API](https://developer.instantly.ai/api-reference/email/send-a-test-email), [warmup analytics](https://developer.instantly.ai/api-reference/account/get-warmup-analytics), and [Vercel domain configuration](https://vercel.com/docs/domains/working-with-domains/add-a-domain).
 
-**NO-GO — no genuine scheduled bounce-brake run was observed; automatic pause protection remains unproven. Keep the campaign Paused.**
+**Prior verdict at 01:11 UTC: NO-GO pending scheduler evidence. Superseded by section G below.**
+
+## G. cron-job.org scheduler and staleness guard
+
+Verified **12/10/2026, 16:00:53 Asia/Karachi**. Production deployment **dpl_Fp2RWLRT2dQaZnKzTir4DCdGHSKH**. Campaign remains **2 / Paused, 0 sent, 0 bounced**; no activation or preview sends were performed.
+
+**outreach-cron #14:** our 12-page safety budget returned HTTP 502 with “Instantly pagination is incomplete”; this was a saved continuation, not evidence of an upstream outage. [Run #14](https://github.com/rummancouk1-jpg/whoraised-leads-demo/actions/runs/38186354660) stopped at 00:00:40 UTC; [run #15](https://github.com/rummancouk1-jpg/whoraised-leads-demo/actions/runs/38210504406) completed that checkpoint at 06:01:13 UTC. A typed continuation now returns **HTTP 202 / pending=true**, retaining previous complete data and recording PENDING with ok=NULL. It does not refresh sync health or suppress actual provider failures. [Live validation run #16](https://github.com/rummancouk1-jpg/whoraised-leads-demo/actions/runs/38236242404) passed with the pending response at 10:25:44 UTC.
+
+### Endpoint and backup
+
+cron-job.org calls **POST https://gg-tourney-hub.vercel.app/api/cron/bounce-brake every 15 minutes**. Required header: **Authorization**, value **Bearer followed by the existing GG_BOUNCE_BRAKE_SECRET**. Its exact value was printed only in the local chat for Rumman and is excluded from source and this audit. Optional attribution header: **X-GG-Trigger: cron-job.org**; the service user agent is also recognized. GitHub's existing workflow and secret remain installed as backup. One GitHub schedule ran at 06:23:31 UTC; its previous manual check was at 00:38:34 UTC, a gap of approximately 5h45m. This establishes sparse execution, not a proven GitHub incident cause.
+
+A database lease serializes checks. Successful nonempty run IDs replay without provider calls or new audit rows; checks within 60 seconds of a successful check are quick no-ops. Skips never advance the successful-check timestamp. Due checks still read current campaign status and uncached bounce counters and append a real observation even if counters have not changed. A confirmed already-paused campaign never receives another native pause call, including changed counters or recovery from an interrupted confirmation. There is no resume path.
+
+Live protection: missing and wrong bearer **401**. Full check **859 ms**, successful replay **377 ms**, frequent no-op **381 ms**; the three authorized calls added **one** audit row. Last-success history is queried independently from the latest attempt.
+
+### Three consecutive automatic checks
+
+The following are durable gg_internal_audit rows with kind=gg-bounce-brake-run and trigger=cron-job.org. Manual calls, the earlier user test, and GitHub runs are excluded. Each recorded ran=true and ok=true.
+
+| Audit row ID | UTC check time | Asia/Karachi check time | Successful | Campaign status | Sent/bounced |
+|---|---|---|---|---|---|
+| 72 | 2026-10-12T10:30:21.440Z | 12/10/2026, 15:30:21 | true | 2 | 0/0 |
+| 73 | 2026-10-12T10:45:16.105Z | 12/10/2026, 15:45:16 | true | 2 | 0/0 |
+| 74 | 2026-10-12T11:00:30.399Z | 12/10/2026, 16:00:30 | true | 2 | 0/0 |
+
+Adjacent gaps: **14.92 and 15.23 minutes**. Proof was read directly from production storage; no synthetic rows or bounce counts were inserted.
+
+### Email guard and validation
+
+The Email view always displays **Bounce brake · Last checked** using the last successful check, in PKT. While the campaign is active (status 1 or 4), an absent, invalid, or **older-than-30-minute** successful check displays the red **“Bounce brake not running”** alert. A newer failed attempt cannot reset the clock. The view reevaluates every 30 seconds, including when history reads fail, and reports unavailable checks separately while paused.
+
+**PASS:** TypeScript, production build, ESLint, **14 targeted tests**, and **18 independent replay checks**. Actual server-module tests cover repeated IDs, the short cooldown, overlapping requests, already-paused changed metrics, interrupted pause confirmation, and preserved last success after a newer failure. Pagination regression proves 202 handoff, no partial publish, resumed success, and unchanged 502 for actual 401/403/500 provider failures.
+
+**PASS: 12/12 production-browser UI captures**, covering breach and active/stale alerts at **390, 820, 1440 px**, each with normal and reduced motion. All captures were visually inspected; geometry asserts no clipping or horizontal overflow, red error color, and no alert animation/transition in reduced motion. Browser-only fixtures also verify stale paused, missing-success active, and fresh active behavior. No production campaign was made active for UI testing. Evidence is retained locally under evidence/gg-bounce-brake/.
+
+Only this task's code, tests, verification script, and audit are committed. Existing unrelated workspace changes remain unstaged, including other edits in the shared Instantly adapter. Staged content is checked against local credentials and database-URL patterns; secret values and raw private evidence are excluded.
+
+**GO — the requested bounce-brake scheduler and staleness gates pass. Campaign remains PAUSED; this verdict does not activate it.**

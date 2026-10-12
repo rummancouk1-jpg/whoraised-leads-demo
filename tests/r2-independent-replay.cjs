@@ -40,6 +40,7 @@ function harness(now = NOW) {
     if (text.startsWith('INSERT INTO gg_digest_deliveries')) { if(state.digestClaims.has(p[0]))return [];state.digestClaims.set(p[0],p[1]);return [{owner:p[1]}]; }
     if (text.startsWith('UPDATE gg_digest_deliveries')) return [];
     if (text.startsWith('INSERT INTO gg_sync_runs')) { const id = state.runs.length + 1; state.runs.push({ id, source:p[0], trigger:p[1], started_at:new Date(NOW).toISOString(), finished_at:null, ok:null, counts:null }); return [{id}]; }
+    if (text.startsWith('UPDATE gg_sync_runs') && text.includes('PENDING')) { const r=state.runs.find(r=>r.id===p[0]); r.finished_at=new Date(NOW).toISOString(); r.counts={state:'PENDING'}; return []; }
     if (text.startsWith('UPDATE gg_sync_runs')) { const r = state.runs.find(r => r.id === p[1]); r.finished_at = new Date(NOW).toISOString(); r.ok = text.includes('ok=true'); if(r.ok) r.counts = JSON.parse(p[0]); else r.error = p[0]; return text.includes('RETURNING id')?[{id:r.id}]:[]; }
     if (text.startsWith('DELETE FROM gg_lead_stats')) { for(const slug of state.stats.keys()) if(!p[0].includes(slug)) state.stats.delete(slug); return []; }
     if (text.startsWith('INSERT INTO gg_lead_stats')) { for(const s of JSON.parse(p[0])) state.stats.set(s.slug, {...s,unknown_fields:['opened','clicked'].filter(k=>s[k]===null),synced_at:new Date(NOW).toISOString()}); return []; }

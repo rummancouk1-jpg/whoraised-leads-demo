@@ -4,6 +4,7 @@ import { isWorkspaceInbox } from "./email-scope";
 import { takeBudget } from "./limits";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { WAITING_FOR_CAMPAIGN } from "@/lib/activity";
+import { SyncPending } from "@/lib/sync-progress";
 const requestSignal = new AsyncLocalStorage<AbortSignal>();
 export function withInstantlyDeadline<T>(work: () => Promise<T>) { return requestSignal.run(AbortSignal.timeout(40000), work); }
 export const etDay = (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(now);
@@ -142,7 +143,10 @@ export async function fetchCampaignActivity(campaignId: string, resume?: Activit
   let loaded = 0;
   const keep = (row: RecordValue) => Object.fromEntries(Object.entries(row).filter(([key]) => ["id","email","status","lt_interest_status","email_open_count","email_click_count","timestamp_last_open","timestamp_last_click","timestamp_last_contact","lead","campaign_id","ue_type","is_auto_reply","timestamp_email","timestamp_created","thread_id"].includes(key)));
   while (state.phase !== "done") {
-    if (++loaded > (save ? 12 : 1000)) throw new Error("Instantly pagination is incomplete. Previous complete data is retained; the next sync continues it.");
+    if (++loaded > (save ? 12 : 1000)) {
+      if (save) throw new SyncPending();
+      throw new Error("Instantly pagination exceeded the read limit.");
+    }
     if (state.pages >= 10000) throw new Error("Instantly pagination exceeded the safety limit. Review the campaign before retrying.");
     const isLead = state.phase === "leads";
     // Read the workspace Unibox, then include this campaign and manual outbound for its lead addresses.

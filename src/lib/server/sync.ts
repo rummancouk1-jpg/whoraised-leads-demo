@@ -6,10 +6,11 @@ import { getLeads } from "./leads";
 import { recordError } from "./errors";
 import { mapInstantly } from "@/lib/instantly-map";
 import { syncHealth, SYNC_INTERVAL_MIN, type SyncRun } from "@/lib/activity";
+import { SyncPending } from "@/lib/sync-progress";
 
 // Runs from a developer machine (stubbed or real) are labelled apart so they can never make a deployed app look freshly synced.
 const SOURCE = process.env.VERCEL ? "instantly" : "instantly-local";
-export type SyncOutcome = { ran: boolean; ok: boolean; reason?: string; counts?: Record<string, number | string> };
+export type SyncOutcome = { ran: boolean; ok: boolean; pending?: boolean; reason?: string; counts?: Record<string, number | string> };
 
 /**
  * One Instantly read: campaign leads + emails -> per-lead stats and timeline events. Every attempt leaves a row in
@@ -71,6 +72,11 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
     }
     return { ran: true, ok: true, counts };
   } catch (e) {
+    if (e instanceof SyncPending) {
+      // Keep ok NULL: progress must not refresh the last complete sync or count as an upstream failure.
+      if (id !== undefined) await sql`UPDATE gg_sync_runs SET finished_at=now(), counts='{"state":"PENDING"}'::jsonb WHERE id=${id}`;
+      return { ran: true, ok: false, pending: true, reason: e.message };
+    }
     // Provider text only: Instantly errors never contain the key. Anything else becomes a generic line.
     const message = e instanceof Error && /^(Instantly|Configured)/.test(e.message) ? e.message : "Instantly sync failed. The previous data is still shown.";
     if (id !== undefined) await sql`UPDATE gg_sync_runs SET finished_at=now(), ok=false, error=${message} WHERE id=${id}`.catch(() => {});
