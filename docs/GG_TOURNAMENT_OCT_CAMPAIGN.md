@@ -95,3 +95,15 @@ Official references: [Campaign API](https://developer.instantly.ai/api-reference
 - Production QA covered Home, Email, and Pipeline at widths 390, 820, and 1440 in light and dark themes, reduced motion, Chromium and WebKit: 36/36 combinations passed; axe reported 0 violations; no horizontal overflow or QA markers appeared.
 - `npm test`: 45 passed. `npm run build`: passed. `npm run lint`: 0 errors (16 existing warnings). A source grep found no tournament fact/date literals outside `src/config/tournament.ts`.
 - No campaign or lead mutation was performed in this release audit. The brake reported `paused: false`.
+
+### Final verification after the `all:all` key update
+
+- The supplied key was installed as a sensitive `INSTANTLY_API_KEY` in both Vercel Production and Preview. Instantly metadata identified its grant as `all:all`; the key itself and any fingerprint are intentionally absent from this document.
+- Production deployment `dpl_AiTBp5HVoA2CC1EU2PnCiBoEwc6U` reached `READY` and was aliased at `https://go.gapgamblerteam.com`. GitHub `main` and the checked-out release commit both resolve to `4f9d5b4ef34308cb5c0cd73ffc5bcf60a38bc42a`.
+- Two consecutive successful automatic production sync records completed at 14:25:09 and 14:40:16 UTC, 15 minutes 7 seconds apart. Both recorded 986 Instantly leads and 27 campaign emails.
+- The production cron-job.org request at 14:45:16 UTC recorded a successful brake check with 27 sent, 1 bounced, and `paused: false`. The 14:30:22 UTC cron-job.org check was also successful (27 sent, 0 bounced, `paused: false`). The cron handler runs the brake before starting sync and bounds sync work to 70 seconds.
+- At 14:43:31 UTC, a direct Instantly campaign analytics request and the uncached production `/api/email/source` response both returned HTTP 200 and matched at 27 sent and 1 bounced.
+- On the final production deployment, “Retry reading activity” returned HTTP 200 with activity data. “Sync now” completed successfully at 14:48:55 UTC (HTTP 200, run `ok: true`, 986 leads, 27 campaign emails). An immediate earlier attempt at 14:45:54 UTC hit the shared Instantly read budget; the checkpoint resumed and the later retry completed.
+- The final production QA rerun covered Home, Email, and Pipeline at 390, 820, and 1440 pixels in light and dark themes, with reduced motion in Chromium and WebKit: 36/36 passed. Every route returned HTTP 200, had no horizontal overflow or QA markers, and axe reported 0 violations.
+- `npm test -- --reporter=line`: 45 passed. A source grep found no tournament fact/date literals outside `src/config/tournament.ts`.
+- Campaign and lead records were not changed. No pause/resume action was performed.
