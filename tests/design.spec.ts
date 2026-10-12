@@ -2,27 +2,28 @@ import { test, expect } from "@playwright/test";
 import { buildStatusLine } from "../src/lib/status-line";
 import { exactTime, parseTime, relativeTime, shortDay } from "../src/lib/time";
 import type { EmailMetrics } from "../src/types/email";
+import { firstPicksCloseLabel, TOURNAMENT } from "../src/config/tournament";
 
 const inbox = (warmup: string) => ({ email: "a@example.com", warmup, health: 100, sentToday: null, dailyLimit: 30 });
-const snap = (patch: Partial<EmailMetrics> = {}): EmailMetrics => ({ fetchedAt: "2026-10-08T00:00:00Z", day: "2026-10-08", inboxes: Array.from({ length: 8 }, () => inbox("Active")), campaign: null, campaignMessage: "No campaign yet", batches: [], ...patch });
+const snap = (patch: Partial<EmailMetrics> = {}): EmailMetrics => ({ fetchedAt: `${TOURNAMENT.startsOn}T00:00:00Z`, day: TOURNAMENT.startsOn, inboxes: Array.from({ length: 8 }, () => inbox("Active")), campaign: null, campaignMessage: "No campaign yet", batches: [], ...patch });
 const base = { leadsLoading: false, leadsFailed: false, queued: 52, total: 52, email: "ready" as const };
-const campaign = (status: number | string, startsOn?: string) => ({ id: "c", name: "GG", status, startsOn, sent: null, contacted: null, opened: null, replied: null, bounced: null, unsubscribed: null });
+const campaign = (status: number | string) => ({ id: "c", name: "GG", status, sent: null, sentToday: null, contacted: null, opened: null, replied: null, bounced: null, unsubscribed: null });
 
-test("status line: counts and send date come from data, never hard-coded", () => {
-  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(0, "2026-10-19") }) }).text).toBe("52 creators & communities queued · 8 inboxes warming · sending starts Oct 19");
-  expect(buildStatusLine({ ...base, queued: 3, snapshot: snap({ campaign: campaign(0, "2026-11-02"), inboxes: [inbox("Active")] }) }).text).toBe("3 creators & communities queued · 1 inbox warming · sending starts Nov 2");
+test("status line: tournament deadline and health copy come from live config and metrics", () => {
+  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(0) }) }).text).toBe(`52 creators & communities queued · Sending inboxes · 100% average health · Pre-launch · ${firstPicksCloseLabel()}`);
+  expect(buildStatusLine({ ...base, queued: 3, snapshot: snap({ campaign: campaign(0), inboxes: [inbox("Active")] }) }).text).toBe(`3 creators & communities queued · Sending inboxes · 100% average health · Pre-launch · ${firstPicksCloseLabel()}`);
 });
-test("status line: missing campaign waits, while an unscheduled draft makes no date promise", () => {
-  expect(buildStatusLine({ ...base, snapshot: snap() }).text).toBe("52 creators & communities queued · 8 inboxes warming · Waiting for first campaign");
-  // A start date already in the past on a draft campaign is not a promise either.
-  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(0, "2026-09-01") }) }).rest?.at(-1)).toBe("sending starts once the signup link is live");
+test("status line: missing campaign and finished campaign remain explicit", () => {
+  expect(buildStatusLine({ ...base, snapshot: snap() }).rest?.[1]).toContain("Pre-launch");
+  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(3) }) }).rest?.[1]).toBe("tournament complete");
 });
 test("status line: campaign states and honest failures", () => {
-  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(1, "2026-10-01") }) })).toMatchObject({ tone: "ok", rest: ["8 inboxes warming", "sending now"] });
-  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(2) }) })).toMatchObject({ tone: "warn", rest: ["8 inboxes warming", "campaign paused"] });
-  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(3) }) }).rest?.[1]).toBe("campaign completed");
-  expect(buildStatusLine({ ...base, snapshot: snap({ inboxes: [inbox("Paused")] }) }).rest?.[0]).toBe("no inboxes warming");
-  expect(buildStatusLine({ ...base, snapshot: snap({ inboxes: [] }) }).rest?.[0]).toBe("no inboxes connected");
+  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: { ...campaign(1), sentToday: 12, bounced: 2 } }) })).toMatchObject({ tone: "ok", rest: ["Sending inboxes · 100% average health", "Campaign live · 12 sent today · 2 bounced"] });
+  expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(2) }) })).toMatchObject({ tone: "warn", rest: ["Sending inboxes · 100% average health", "campaign paused"] });
+  const brake = { alert: { at: "", sent: 60, bounced: 4, rate: 4/60, status: "paused" as const }, lastCheck: null, lastSuccess: null };
+  expect(buildStatusLine({ ...base, brake, snapshot: snap({ campaign: campaign(2) }) }).rest?.[1]).toBe("paused by bounce brake");
+  expect(buildStatusLine({ ...base, snapshot: snap({ inboxes: [inbox("Paused")] }) }).rest?.[0]).toBe("Sending inboxes · 100% average health");
+  expect(buildStatusLine({ ...base, snapshot: snap({ inboxes: [] }) }).rest?.[0]).toBe("no sending inboxes connected");
   expect(buildStatusLine({ ...base, email: "unavailable", snapshot: null })).toMatchObject({ tone: "warn", rest: ["couldn't read inbox status"] });
   expect(buildStatusLine({ ...base, email: "loading", snapshot: null })).toMatchObject({ main: "52 creators & communities queued", rest: null, text: null });
   expect(buildStatusLine({ ...base, leadsLoading: true, snapshot: snap() }).main).toBeNull();
@@ -53,6 +54,6 @@ test("exact time is unambiguous; send dates never shift with the viewer's time z
   expect(exactTime("2026-10-05")).toBe("Mon, Oct 5, 2026");
   expect(exactTime("2026-10-08T00:37:02.286Z")).toMatch(/Oct 7, 2026|Oct 8, 2026/);
   expect(exactTime("2026-10-08T00:37:02.286Z")).toMatch(/\d{1,2}:\d{2}:\d{2}/);
-  expect(shortDay("2026-10-19")).toBe("Oct 19");
-  expect(shortDay("2026-11-02")).toBe("Nov 2");
+  expect(shortDay(TOURNAMENT.startsOn)).toBeTruthy();
+  expect(shortDay(TOURNAMENT.endsOn)).toBeTruthy();
 });

@@ -18,6 +18,7 @@ import { ClickAnalytics } from "./ClickAnalytics";
 import { Attribution } from "./Attribution";
 import { ConversionLoop } from "./ConversionLoop";
 import { SyncBanner } from "@/components/shell/SyncBanner";
+import { TOURNAMENT, tournamentFacts, tournamentPhase } from "@/config/tournament";
 
 type Visit = { partners: number; joined: number; clicks: number; day: string };
 function Changes() {
@@ -47,7 +48,7 @@ export function LaunchChecklist() {
   const warmed = snapshot?.inboxes.filter(i => i.warmup === "Active" && i.health !== null && i.health >= 90).length ?? 0;
   const live = !!data?.attribution.live;
   const rows = [
-    { label: "Inboxes warmed", done: !!snapshot?.inboxes.length && warmed === snapshot.inboxes.length, detail: snapshot ? `${warmed} / ${snapshot.inboxes.length} ready` : "Awaiting inbox data" },
+    { label: "Sending inboxes", done: !!snapshot?.inboxes.length && warmed === snapshot.inboxes.length, detail: snapshot ? `${warmed} / ${snapshot.inboxes.length} healthy` : "Awaiting inbox data" },
     { label: "Partner list vetted", done: vetted > 0, detail: loading && !summary ? "Reading list" : `${vetted} / ${vetted} verified` },
     { label: "Preregistration link", done: live, detail: live ? "Live" : "Pending" },
     { label: "First campaign", done: !!snapshot?.campaign && ["1", "3", "4"].includes(String(snapshot.campaign.status)), detail: snapshot?.campaign ? ({ "0": "Draft", "1": "Live", "2": "Paused", "3": "Completed", "4": "Live" }[String(snapshot.campaign.status)] ?? "Awaiting status") : "Waiting" },
@@ -60,12 +61,16 @@ export function HomeDashboard() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const real = leads.filter(l => !isExample(l));
   const top = [...real].sort((a, b) => (b.priority_score ?? fitScore(b, weights).score) - (a.priority_score ?? fitScore(a, weights).score) || a.name.localeCompare(b.name)).slice(0, 5);
-  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
-  const days = Math.max(0, Math.ceil((Date.parse("2026-10-19T00:00:00Z") - Date.parse(`${date}T00:00:00Z`)) / 86400000));
+  const phase = tournamentPhase(now);
+  const facts = tournamentFacts();
+  const ringValue = phase.state === "countdown" ? Math.max(0, 100 - phase.daysRemaining / TOURNAMENT.durationDays * 100) : phase.state === "live" ? phase.day / TOURNAMENT.durationDays * 100 : 100;
+  const ringDisplay = phase.state === "countdown" ? phase.daysRemaining : phase.state === "live" ? phase.day : TOURNAMENT.durationDays;
+  const ringLabel = phase.state === "countdown" ? `${facts.close} · ${phase.daysRemaining} days remaining` : phase.state === "live" ? `Tournament live · Day ${phase.day} of ${TOURNAMENT.durationDays}` : "Tournament complete";
+  const phaseTitle = phase.state === "countdown" ? facts.close : phase.state === "live" ? `Tournament live · Day ${phase.day} of ${TOURNAMENT.durationDays}` : "Tournament complete";
   const chooseGroup = (kind: string) => { setView({ search: "", showLongTail: true, filters: { ...INITIAL_FILTERS, kind } }); go("/pipeline"); };
   return <div className="gg-workspace r3-home"><main id="main" tabIndex={-1} aria-labelledby="page-title"><div className="gg-container">
-    <SyncBanner /><div className="hero"><div><StatusLine /><p className="r3-hero-description">Creators, newsletters, communities and sponsors, ready for the tournament. Replies, follow-ups and signups appear as sending begins.</p><Changes /></div><div className="card countdown"><Ring value={Math.min(100, Math.max(0, Math.round((30 - days) / 30 * 100)))} display={days} label={`${days} days to October 19 kickoff`} /><div><div className="lbl">Days to kickoff</div><div className="big num">Oct 19 – Nov 13</div><div className="lbl">Longest streak wins $1,000</div></div></div></div>
-    <StatusStrip /><div className="card facts" role="note"><span><b>Oct 19 – Nov 13</b></span><span>Free entry</span><span>One daily pick</span><span>Longest streak wins <b>$1,000</b></span><span>U.S. 18+</span></div>
+    <SyncBanner /><div className="hero"><div><StatusLine /><p className="r3-hero-description">Live campaign activity, sending inbox health, and creator response—grounded in current workspace data.</p><Changes /></div><div className="card countdown"><Ring value={ringValue} display={ringDisplay} label={ringLabel} /><div><div className="lbl">{phase.state === "countdown" ? "First picks close" : "Tournament status"}</div><div className="big num">{phaseTitle}</div><div className="lbl">{facts.range} · Longest streak wins {facts.prize}</div></div></div></div>
+    <StatusStrip /><div className="card facts" role="note"><span><b>{facts.range}</b></span><span>{facts.entry}</span><span>{facts.dailyPick}</span><span>Longest streak wins <b>{facts.prize}</b></span><span>{facts.eligibility}</span></div>
     {error && <div className="gg-error" role="alert">{error}<button className="btn" onClick={() => void retrySave()}>Retry saving</button></div>}
     <div className="grid home-grid"><div className="r3-stack"><div className="card r3-action"><NeedsAction /><div className="card-b"><LaunchChecklist /></div></div><section className="card"><div className="card-h"><h2>Top priority</h2><Link className="meta r3-link" href="/pipeline">View all →</Link></div><div className="card-b"><ul className="leadlist">{top.map(lead => <li key={lead.tracked_slug}><Link className="leadrow" href="/pipeline" onClick={() => { setView({ search: lead.tracked_slug, showLongTail: true, filters: { ...INITIAL_FILTERS } }); }}><Avatar lead={lead} /><span className="r3-min"><span className="nm">{lead.name}</span><span className="hd">{lead.handle} · {lead.platform}</span></span><span className="chip">{GROUP_NAMES[lead.kind]}</span><ScoreBar score={lead.priority_score ?? fitScore(lead, weights).score} /></Link></li>)}</ul>{!top.length && <p className="gg-muted">{loading ? "Reading partner priorities…" : "Import partners in Pipeline to see your top five."}</p>}</div></section></div>
     <div className="r3-stack"><PipelineGlance real={real} /><section className="card"><div className="card-h"><h2>By group</h2><span className="meta">Qualified partners</span></div><div className="card-b grid groups">{KINDS.map(kind => { const rows = real.filter(l => l.kind === kind); return <button className="group" key={kind} onClick={() => chooseGroup(kind)}><span className="gn">{GROUP_NAMES[kind]}</span><span className="gv"><Count value={rows.length} /></span><span className="gs">{rows.reduce((n, l) => n + l.signups, 0)} signups · {rows.filter(l => l.stage === "Joined").length} joined</span></button>; })}</div></section></div></div>

@@ -17,11 +17,13 @@ export type SyncOutcome = { ran: boolean; ok: boolean; pending?: boolean; reason
  * gg_sync_runs, success or failure, which is what the freshness indicator and the stale warning are computed from.
  * `minAgeMin` makes the call a no-op when a good run is recent (the on-screen nudge uses it; the cron does not).
  */
-export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minAgeMin = 0): Promise<SyncOutcome> {
+export async function runInstantlySync(trigger: "cron" | "cron-job.org" | "manual" | "auto", minAgeMin = 0, budgetMs = 120000): Promise<SyncOutcome> {
   await initializeDatabase();
   const sql = database();
   const owner = await acquireLease("instantly-sync");
   if (!owner) return { ran: false, ok: true, reason: "A sync is already running." };
+  const deadline = Date.now() + Math.max(1, budgetMs);
+  const bounded = <T>(work: () => Promise<T>) => withInstantlyDeadline(work, Math.min(40000, deadline - Date.now()));
   let id: number | undefined;
   try {
   const recent = await sql`SELECT max(finished_at) AS last_ok FROM gg_sync_runs WHERE source=${SOURCE} AND ok`;
@@ -29,7 +31,7 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
   const run = await sql`INSERT INTO gg_sync_runs(source,trigger) VALUES (${SOURCE},${trigger}) RETURNING id`;
   id = run[0].id;
     if (!process.env.INSTANTLY_API_KEY) throw new Error("Instantly is not connected. Ask the workspace owner to connect it.");
-    const campaign = await withInstantlyDeadline(() => selectCampaignId());
+    const campaign = await bounded(() => selectCampaignId());
     let counts: Record<string, number | string> = { state: "WAITING", campaign: campaign.message || "none", matched: 0, sent: 0, opened: 0, replied: 0, bounced: 0 };
     if (!campaign.id) {
       // An authenticated, successful read with no selected campaign is healthy.
@@ -38,11 +40,11 @@ export async function runInstantlySync(trigger: "cron" | "manual" | "auto", minA
       if (!committed.length) throw new Error("Instantly sync lease expired. Previous complete data is retained.");
     }
     if (campaign.id) {
-      await withInstantlyDeadline(() => assertLeadScopes());
+      await bounded(() => assertLeadScopes());
       const leads = await getLeads();
       const checkpoint = await sql`SELECT state FROM gg_sync_checkpoints WHERE campaign=${campaign.id}`;
       const saved = checkpoint[0]?.state as ActivityCheckpoint | undefined;
-      const { leads: remote, emails, observedFrom } = await withInstantlyDeadline(() => fetchCampaignActivity(campaign.id!, saved, async state => {
+      const { leads: remote, emails, observedFrom } = await bounded(() => fetchCampaignActivity(campaign.id!, saved, async state => {
         await sql`INSERT INTO gg_sync_checkpoints(campaign,state) SELECT ${campaign.id},${JSON.stringify(state)}::jsonb
           WHERE EXISTS (SELECT 1 FROM gg_job_leases WHERE key='instantly-sync' AND owner=${owner} AND lease_until>now())
           ON CONFLICT(campaign) DO UPDATE SET state=EXCLUDED.state,updated_at=now()`;

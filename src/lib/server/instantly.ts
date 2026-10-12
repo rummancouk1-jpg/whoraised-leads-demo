@@ -5,8 +5,13 @@ import { takeBudget } from "./limits";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { WAITING_FOR_CAMPAIGN } from "@/lib/activity";
 import { SyncPending } from "@/lib/sync-progress";
+import { firstPicksCloseLabel, TOURNAMENT } from "@/config/tournament";
+import { scopesCover } from "./instantly-scopes";
 const requestSignal = new AsyncLocalStorage<AbortSignal>();
-export function withInstantlyDeadline<T>(work: () => Promise<T>) { return requestSignal.run(AbortSignal.timeout(40000), work); }
+export function withInstantlyDeadline<T>(work: () => Promise<T>, timeoutMs = 40000) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return Promise.reject(new Error("Instantly sync time budget exhausted."));
+  return requestSignal.run(AbortSignal.timeout(Math.min(40000, timeoutMs)), work);
+}
 export const etDay = (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(now);
 type RecordValue = Record<string, unknown>;
 function number(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null; }
@@ -51,6 +56,20 @@ export async function list(path: "accounts" | "campaigns") {
   }
   throw new Error("Instantly has too many pages to load safely.");
 }
+
+/** New paused campaigns have no analytics row yet; count their actual uploaded leads. */
+async function campaignLeadCount(campaign: string) {
+  let count = 0, cursor = "";
+  const seen = new Set<string>();
+  for (let page = 0; page < 100; page++) {
+    const data = await api("leads/list", new URLSearchParams(), { campaign, limit: 100, ...(cursor ? { starting_after: cursor } : {}) });
+    count += records(data.items).length;
+    if (!data.next_starting_after) return count;
+    if (typeof data.next_starting_after !== "string" || seen.has(data.next_starting_after)) throw new Error("Instantly lead pagination did not advance.");
+    cursor = data.next_starting_after; seen.add(cursor);
+  }
+  throw new Error("Instantly campaign lead count is incomplete.");
+}
 export async function fetchEmailMetrics(): Promise<EmailMetrics> {
   const now = new Date();
   const day = etDay(now);
@@ -69,7 +88,7 @@ export async function fetchEmailMetrics(): Promise<EmailMetrics> {
     return { email: String(a.email), warmup: warmupLabels[String(a.warmup_status)] ?? "Awaiting warmup status", health: number(a.stat_warmup_score), sentToday, dailyLimit: number(a.daily_limit) };
   });
   const configured = process.env.INSTANTLY_CAMPAIGN_ID;
-  const matches = configured ? campaigns.filter(c => c.id === configured) : campaigns.filter(c => /gg outreach|gap gambler|earnings tournament/i.test(String(c.name)));
+  const matches = configured ? campaigns.filter(c => c.id === configured) : campaigns.filter(c => /gg outreach|gap gambler|earnings tournament|^GG Tournament Oct$/i.test(String(c.name)));
   let campaign: CampaignMetrics | null = null;
   let campaignMessage = WAITING_FOR_CAMPAIGN;
   let batches: SendDay[] = [];
@@ -83,15 +102,44 @@ export async function fetchEmailMetrics(): Promise<EmailMetrics> {
       api("campaigns/analytics", new URLSearchParams({ id })),
       api("campaigns/analytics/daily", new URLSearchParams({ campaign_id: id, start_date: start.toISOString().slice(0, 10), end_date: now.toISOString() })),
     ]);
-    const row = records(analytics).find(r => r.campaign_id === id);
+    let row = records(analytics).find(r => r.campaign_id === id);
+    if (!row && ["0", "2"].includes(String(selected.status))) {
+      const [overview, count] = await Promise.all([api("campaigns/analytics/overview", new URLSearchParams({ id })), campaignLeadCount(id)]);
+      row = { ...overview, campaign_name: selected.name, leads_count: count };
+    }
     if (!row) throw new Error("Instantly campaign analytics are unavailable.");
     {
-      campaign = { id, status: typeof selected.status === "number" || typeof selected.status === "string" ? selected.status : undefined, name: String(row.campaign_name), sent: number(row.emails_sent_count), contacted: number(row.contacted_count), opened: number(row.open_count_unique ?? row.open_count), replied: number(row.reply_count_unique), bounced: number(row.bounced_count), unsubscribed: number(row.unsubscribed_count) };
+      const dailyRows = records(daily);
+      const today = dailyRows.find(r => String(r.date).slice(0, 10) === day);
+      campaign = { id, status: typeof selected.status === "number" || typeof selected.status === "string" ? selected.status : undefined, name: String(row.campaign_name), sent: number(row.emails_sent_count), contacted: number(row.contacted_count), opened: number(row.open_count_unique ?? row.open_count), replied: number(row.reply_count_unique), clicked: number(row.click_count_unique ?? row.click_count), bounced: number(row.bounced_count), unsubscribed: number(row.unsubscribed_count), sentToday: today ? number(today.sent) : 0 };
+      campaign.leadsCount = number(row.leads_count);
+      const sequence = Array.isArray(selected.sequences) ? selected.sequences[0] as RecordValue | undefined : undefined;
+      const steps = sequence && Array.isArray(sequence.steps) ? records(sequence.steps) : [];
+      let sequenceDay = 0;
+      campaign.steps = steps.map(step => {
+        const variants = Array.isArray(step.variants) ? records(step.variants) : [];
+        const result = { subject: String(variants.find(v => !v.v_disabled)?.subject ?? "Email"), day: sequenceDay };
+        const delay = number(step.delay) ?? 0;
+        sequenceDay += delay / (step.delay_unit === "hours" ? 24 : step.delay_unit === "minutes" ? 1440 : 1);
+        return result;
+      });
       const schedule = selected.campaign_schedule;
       const startDate = schedule && typeof schedule === "object" ? (schedule as RecordValue).start_date : null;
       if (typeof startDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(startDate) && Number.isFinite(Date.parse(startDate))) campaign.startsOn = startDate.slice(0, 10);
+      const windows = schedule && typeof schedule === "object" && Array.isArray((schedule as RecordValue).schedules) ? records((schedule as RecordValue).schedules) : [];
+      const window = windows[0];
+      const timing = window?.timing as RecordValue | undefined;
+      const days = window?.days as RecordValue | undefined;
+      campaign.ready = (campaign.leadsCount ?? 0) > 0
+        && steps.length === 3 && campaign.steps.every((step, i) => step.day === [0, 3, 7][i])
+        && steps.every(step => Array.isArray(step.variants) && records(step.variants).some(v => !v.v_disabled && typeof v.body === "string" && v.body.includes(firstPicksCloseLabel() + ".")))
+        && Array.isArray(selected.email_list) && new Set(selected.email_list).size === 8
+        && selected.email_list.every(email => accounts.some(a => a.email === email && a.daily_limit === 30))
+        && selected.daily_limit === 240 && selected.text_only === true && selected.open_tracking === false && selected.link_tracking === false && selected.stop_on_reply === true
+        && !!campaign.startsOn && campaign.startsOn <= TOURNAMENT.startsOn && windows.length === 1 && ["America/Detroit", TOURNAMENT.timeZone].includes(String(window?.timezone))
+        && timing?.from === "09:00" && timing?.to === "17:00" && !!days && Array.from({ length: 7 }, (_, i) => days[String(i)] === true).every(Boolean);
       campaignMessage = "";
-      batches = records(daily).map(r => ({ date: String(r.date), sent: number(r.sent), contacted: number(r.contacted), opened: number(r.unique_opened), replied: number(r.unique_replies) })).filter(r => r.sent !== null && r.sent > 0).sort((a,b) => b.date.localeCompare(a.date));
+      batches = dailyRows.map(r => ({ date: String(r.date), sent: number(r.sent), contacted: number(r.contacted), opened: number(r.unique_opened), replied: number(r.unique_replies) })).filter(r => r.sent !== null && r.sent > 0).sort((a,b) => b.date.localeCompare(a.date));
     }
   }
   return { fetchedAt: now.toISOString(), day, inboxes, campaign, campaignMessage, batches };
@@ -130,7 +178,7 @@ export async function fetchEmailSource() {
 export async function selectCampaignId(): Promise<{ id: string | null; message: string }> {
   const configured = process.env.INSTANTLY_CAMPAIGN_ID;
   const campaigns = await list("campaigns");
-  const matches = configured ? campaigns.filter(c => c.id === configured) : campaigns.filter(c => /gg outreach|gap gambler|earnings tournament/i.test(String(c.name)));
+  const matches = configured ? campaigns.filter(c => c.id === configured) : campaigns.filter(c => /gg outreach|gap gambler|earnings tournament|^GG Tournament Oct$/i.test(String(c.name)));
   if (configured && !matches.length) throw new Error("Configured Instantly campaign was not found. Ask the workspace owner to select a campaign.");
   if (matches.length > 1) return { id: null, message: "Multiple tournament campaigns found. Ask the workspace owner to select one." };
   return matches.length ? { id: String(matches[0].id), message: "" } : { id: null, message: "No campaign yet" };
@@ -173,6 +221,18 @@ export async function fetchCampaignActivity(campaignId: string, resume?: Activit
  * (leads/list is a POST only because its filters are complex; it reads and changes nothing.)
  */
 export async function assertLeadScopes() {
+  // Instantly returns the current API-key scopes in key metadata, while the
+  // actual key value is intentionally omitted. Only trust this shortcut when
+  // the workspace has a single key; otherwise endpoint probes below verify
+  // access without guessing which listed key authenticated this request.
+  try {
+    const metadata = await api("api-keys");
+    const keys = records(metadata.items);
+    if (keys.length === 1 && scopesCover(keys[0].scopes, ["leads:read", "emails:read"])) return;
+  } catch {
+    // Key metadata may be unavailable to a narrowly scoped key. Read probes
+    // remain the fallback and keep exact-scope keys working.
+  }
   const failed: string[] = [];
   const attempt = async (scope: string, work: () => Promise<unknown>) => { try { await work(); } catch (e) { if (/HTTP (401|403)/.test(String((e as Error).message))) failed.push(scope); else throw e; } };
   await attempt("leads:read", () => api("leads/list", new URLSearchParams(), { limit: 1 }));

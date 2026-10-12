@@ -1,9 +1,10 @@
 import "server-only";
 import { database, initializeDatabase } from "./db";
-import { isTestClick, platformGuess, safeReferrer } from "@/lib/click-tracking";
+import { isEmailCampaignSlug, isTestClick, platformGuess, safeReferrer } from "@/lib/click-tracking";
 
 /** Prefer exact IDs; a clean public alias resolves to its legacy ID for counting and tokens. */
 export async function resolveTrackedSlug(slug: string) {
+  if (isEmailCampaignSlug(slug)) return slug;
   await initializeDatabase();
   const rows = await database()`SELECT slug FROM gg_leads WHERE slug=${slug} OR slug=${"preclient-" + slug} ORDER BY (slug=${slug}) DESC LIMIT 1`;
   return rows[0]?.slug as string | undefined;
@@ -11,6 +12,11 @@ export async function resolveTrackedSlug(slug: string) {
 
 export async function recordClick(slug: string, agent: string, referrer: string, url?: string, marker = "", token?: string) {
   await initializeDatabase();
+  if (isEmailCampaignSlug(slug)) {
+    await database()`INSERT INTO gg_clicks (slug, lead_group, referrer, platform_guess, is_example, is_test, click_token)
+      VALUES (${slug}, 'Email', ${safeReferrer(referrer)}, ${platformGuess(agent, referrer)}, false, ${isTestClick(slug, url, agent, marker)}, ${token ?? null})`;
+    return true;
+  }
   // Unknown slugs are never counted. Group is captured at click time.
   const rows = await database()`INSERT INTO gg_clicks (slug, lead_group, referrer, platform_guess, is_example, is_test, click_token)
     SELECT slug, data->>'platform', ${safeReferrer(referrer)}, ${platformGuess(agent, referrer)},

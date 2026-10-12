@@ -1,6 +1,6 @@
 import type { EmailMetrics } from "@/types/email";
-import { shortDay } from "@/lib/time";
-import { WAITING_FOR_CAMPAIGN } from "./activity";
+import type { BounceBrakeStatus } from "./bounce-brake";
+import { firstPicksCloseLabel, tournamentPhase } from "@/config/tournament";
 
 export type StatusTone = "ok" | "info" | "warn" | "idle";
 export type StatusLine = {
@@ -21,9 +21,8 @@ export type StatusLineInput = {
   total: number;
   email: "loading" | "ready" | "unavailable";
   snapshot?: EmailMetrics | null;
+  brake?: BounceBrakeStatus | null;
 };
-
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /**
  * One plain-language sentence for the campaign. Every figure and date comes from the workspace database or the
@@ -43,20 +42,26 @@ export function buildStatusLine(input: StatusLineInput): StatusLine {
     const snap = input.snapshot;
     if (!snap) { rest = ["couldn't read inbox status"]; tone = "warn"; }
     else {
-      const warming = snap.inboxes.filter(i => i.warmup === "Active").length;
-      const inbox = !snap.inboxes.length ? "no inboxes connected" : warming ? `${plural(warming, "inbox", "inboxes")} warming` : "no inboxes warming";
+      const health = snap.inboxes.flatMap(i => i.health === null ? [] : [i.health]);
+      const inbox = !snap.inboxes.length ? "no sending inboxes connected" : `Sending inboxes · ${health.length ? `${Math.round(health.reduce((a,b) => a+b,0)/health.length)}% average health` : "health unavailable"}`;
       const campaign = snap.campaign;
       const status = String(campaign?.status);
-      const start = campaign?.startsOn;
-      const scheduled = !!start && start >= snap.day;
       let send: string;
-      if (!campaign) send = WAITING_FOR_CAMPAIGN;
-      else if (status === "2") { send = "campaign paused"; tone = "warn"; }
-      else if (campaign && status === "3") { send = "campaign completed"; tone = "idle"; }
-      else if (campaign && ["1", "4"].includes(status) && !scheduled) { send = "sending now"; tone = "ok"; }
-      else if (scheduled) send = `sending starts ${shortDay(start!)}`;
-      else send = "sending starts once the signup link is live";
-      if (!snap.inboxes.length || !warming) tone = tone === "ok" ? tone : "warn";
+      if (!campaign) send = `Pre-launch · ${firstPicksCloseLabel()}`;
+      else if (status === "2") { send = input.brake?.alert?.status === "paused" ? "paused by bounce brake" : "campaign paused"; tone = "warn"; }
+      else if (status === "3") { send = "tournament complete"; tone = "idle"; }
+      else if (["1", "4"].includes(status)) {
+        const phase = tournamentPhase(Date.parse(snap.fetchedAt));
+        if (phase.state === "complete") { send = "tournament complete"; tone = "idle"; }
+        else {
+          const sent = campaign.sentToday == null ? "metrics unavailable" : `${campaign.sentToday.toLocaleString()} sent today`;
+          const bounced = campaign.bounced == null ? "bounces unavailable" : `${campaign.bounced.toLocaleString()} bounced`;
+          send = `Campaign live · ${sent} · ${bounced}`;
+          tone = "ok";
+        }
+      }
+      else send = `Pre-launch · ${firstPicksCloseLabel()}`;
+      if (!snap.inboxes.length) tone = tone === "ok" ? tone : "warn";
       rest = [inbox, send];
     }
   }

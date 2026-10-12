@@ -541,6 +541,7 @@ summary{min-height:44px;cursor:pointer;color:var(--text-2)}
 .r3-heat-scroll{overflow:auto;padding-bottom:var(--s2)}.heat{min-width:640px;grid-template-columns:200px repeat(14,minmax(20px,1fr));color:var(--text-2)}.heat .who{color:var(--text-2)}
 .heat .c{min-height:24px;aspect-ratio:1}.r3-heat-legend{display:flex;gap:var(--s4);flex-wrap:wrap;margin-top:var(--s4);color:var(--text-2);font-size:var(--t-xs)}
 .gg-email-metrics{padding:var(--s6);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s4)}
+.gg-email-metrics.gg-campaign-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
 .gg-email-metrics h3{font-size:var(--t-xs);font-weight:500}.gg-email-metrics strong{font-size:var(--t-xl);display:block}
 .r3-email details{border-top:1px solid var(--line);padding-top:var(--s4)}
 .r3-email .gg-email-note{font-size:var(--t-xs);color:var(--text-2)}

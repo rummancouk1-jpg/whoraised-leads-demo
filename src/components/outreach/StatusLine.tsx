@@ -10,15 +10,15 @@ import { Skeleton } from "@/components/ui/Skeleton";
 /** The one-sentence answer to "where does the campaign stand?" — built only from live data (see lib/status-line). */
 export function StatusLine({ compact = false }: { compact?: boolean }) {
   const { summary, error } = useOutreach();
-  const { data, error: emailError, snapshot, isLive } = useEmail();
+  const { data, error: emailError, snapshot, isLive, brake } = useEmail();
   const line = buildStatusLine({
     leadsLoading: !summary && !error, leadsFailed: !!error && !summary, queued: summary?.queued ?? 0, total: summary?.total ?? 0,
-    email: snapshot ? "ready" : emailError || data ? "unavailable" : "loading", snapshot,
+    email: snapshot ? "ready" : emailError || data ? "unavailable" : "loading", snapshot, brake,
   });
   const Heading = compact ? "p" : "h1";
   if (!compact) return <section className="gg-hero" aria-label="Campaign status" aria-busy={!line.text}>
     <div className="status-line"><span className="chip"><span className={`gg-dot gg-dot-${line.tone}`} aria-hidden />{line.rest?.[0] ?? "Reading inbox status…"}</span><span className="chip">{line.rest?.[1] ?? "Reading campaign status…"}</span></div>
-    <h1 className="gg-hero-line" id="page-title">{summary ? <>{summary.queued ? `${summary.queued} ${summary.queued === 1 ? "partner" : "partners"} ready.` : summary.total ? "Every partner has a next step." : "Your next partners start here."} <span className="gg-hero-rest">{snapshot?.campaign ? line.rest?.[1] : "Outreach starts with the first campaign."}</span></> : <Skeleton className="gg-sk-hero" />}</h1>
+    <h1 className="gg-hero-line" id="page-title">{summary ? <>{summary.queued ? `${summary.queued} ${summary.queued === 1 ? "partner" : "partners"} ready.` : summary.total ? "Every partner has a next step." : "Your next partners start here."} <span className="gg-hero-rest">{snapshot ? line.rest?.[1] : "Campaign status is loading."}</span></> : <Skeleton className="gg-sk-hero" />}</h1>
   </section>;
   return <section className={`gg-hero ${compact ? "gg-hero-compact" : ""}`} aria-label="Campaign status" aria-busy={line.text === null}>
     <p className="gg-hero-kicker"><span className={`gg-dot gg-dot-${line.tone}`} aria-hidden="true" />Campaign status

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { isTestClick, isPreviewBot, platformGuess, preregDestination, safeReferrer } from "../src/lib/click-tracking";
+import { isEmailCampaignSlug, isTestClick, isPreviewBot, platformGuess, preregDestination, safeReferrer } from "../src/lib/click-tracking";
 import { groupResults, suggestedWeights } from "../src/lib/outreach";
 import type { Lead } from "../src/types/outreach";
 
@@ -62,4 +62,23 @@ test("Referrer privacy and platform heuristics", () => {
   expect(platformGuess("Mobile iPhone", "https://t.co/path")).toBe("phone");
   expect(platformGuess("Mozilla", "https://www.x.com/post")).toBe("X");
   expect(platformGuess("Mozilla", "https://x.com.attacker.test/")).toBe("desktop");
+});
+
+test("Email campaign redirects preserve only hashed identity and fixed segment attribution", () => {
+  for (const segment of ["trader", "general"]) {
+    const slug = `email-${segment}`;
+    expect(isEmailCampaignSlug(slug)).toBe(true);
+    expect(isTestClick(slug)).toBe(false);
+    const incoming = `https://gg-tourney-hub.vercel.app/go/${slug}?c=${"A".repeat(64)}&utm_source=forged&utm_campaign=forged&utm_content=forged`;
+    const url = new URL(preregDestination(slug, undefined, incoming));
+    expect(url.hostname).toBe("earningstournament.com");
+    expect(url.searchParams.get("utm_source")).toBe("email");
+    expect(url.searchParams.get("utm_campaign")).toBe("gg-oct");
+    expect(url.searchParams.get("utm_content")).toBe(segment);
+    expect(url.searchParams.get("c")).toBe("a".repeat(64));
+    expect(url.searchParams.has("test")).toBe(false);
+    const raw = new URL(preregDestination(slug, undefined, `https://gg-tourney-hub.vercel.app/go/${slug}?c=person@example.com`));
+    expect(raw.searchParams.has("c")).toBe(false);
+  }
+  expect(isEmailCampaignSlug("email-other")).toBe(false);
 });

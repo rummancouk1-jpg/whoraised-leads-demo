@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import { CSV_COLUMNS, type Lead } from "../src/types/outreach";
 import { audienceBand, contactType, DEFAULT_WEIGHTS, exportCsv, fitScore, generateDraft, groupResults, parseLeadsCsv, suggestedWeights, conversionPriority, leadTier } from "../src/lib/outreach";
+import { tournamentFacts } from "../src/config/tournament";
 
 // Synthetic QA-only records. Never loaded by the application or shipped as seed data.
 const makeLead = (patch: Partial<Lead>): Lead => ({ name: "QA Earnings Creator", handle: "@qa-earnings", platform: "YouTube", kind: "creator", audience_size: 25000, niche: "earnings", us_focus: "yes", contact: "qa@example.com", tracked_slug: "qa-earnings", stage: "New", signups: 0, last_touch: "", notes: "QA fixture", ...patch });
@@ -36,7 +37,7 @@ test("CSV, score, draft and compound loop contracts", () => {
   expect(fitScore(makeLead({ us_focus: "mixed" })).score).toBeGreaterThan(fitScore(makeLead({ us_focus: "unknown" })).score);
   expect(fitScore(makeLead({ contact: "https://x.com/qa" })).score).toBeLessThan(100);
   expect(contactType("")).toBe("missing");
-  expect(generateDraft(fixture[0], "https://preview.invalid")).toBe("Hi QA Earnings Creator — we're running a free market-prediction tournament Oct 19–Nov 13. One daily pick, longest streak wins $1,000. Think your audience can beat you? We'd like to give you a creator entry and invite your community to compete against you: https://preview.invalid/go/qa-earnings");
+  expect(generateDraft(fixture[0], "https://preview.invalid")).toBe(`Hi QA Earnings Creator — we're running a free market-prediction tournament ${tournamentFacts().range}. ${tournamentFacts().dailyPick}, longest streak wins ${tournamentFacts().prize}. Think your audience can beat you? We'd like to give you a creator entry and invite your community to compete against you: https://preview.invalid/go/qa-earnings`);
   const multiline = makeLead({ notes }); expect(parseLeadsCsv(exportCsv([multiline]))).toEqual([multiline]);
   expect(parseLeadsCsv("\uFEFF" + exportCsv([multiline]))).toEqual([multiline]);
   expect(() => parseLeadsCsv(csv.replace("audience_size", "audience"))).toThrow("Columns");

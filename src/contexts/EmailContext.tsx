@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EmailMetrics, EmailResponse } from "@/types/email";
+import type { BounceBrakeStatus } from "@/lib/bounce-brake";
 import { navigateSession } from "@/lib/session-navigation";
 
 type EmailState = {
@@ -12,6 +13,7 @@ type EmailState = {
   /** Live Instantly metrics when available, otherwise the newest saved daily snapshot. */
   snapshot: EmailMetrics | null;
   isLive: boolean;
+  brake: BounceBrakeStatus | null;
 };
 const Context = createContext<EmailState | null>(null);
 
@@ -20,6 +22,7 @@ export function EmailProvider({ children, initialSnapshot = null }: { children: 
   const [data, setData] = useState<EmailResponse | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
+  const [brake, setBrake] = useState<BounceBrakeStatus | null>(null);
   const controller = useRef<AbortController | null>(null);
   const inflight = useRef<Promise<void> | null>(null);
   const refresh = useCallback(() => {
@@ -27,10 +30,14 @@ export function EmailProvider({ children, initialSnapshot = null }: { children: 
     setBusy(true);
     inflight.current = (async () => {
       try {
-        const response = await fetch("/api/email", { cache: "no-store", signal: controller.current?.signal });
+        const [response, brakeResponse] = await Promise.all([
+          fetch("/api/email", { cache: "no-store", signal: controller.current?.signal }),
+          fetch("/api/email/bounce-brake", { cache: "no-store", signal: controller.current?.signal }).catch(() => null),
+        ]);
         if (response.status === 401) { navigateSession("/login"); return; }
         if (!response.ok) throw new Error("Email view could not be loaded.");
         setData(await response.json()); setError("");
+        if (brakeResponse?.ok) setBrake(await brakeResponse.json() as BounceBrakeStatus);
       } catch (e) { if (!controller.current?.signal.aborted) setError((e as Error).message || "Email view could not be loaded."); }
       finally { setBusy(false); inflight.current = null; }
     })();
@@ -48,7 +55,7 @@ export function EmailProvider({ children, initialSnapshot = null }: { children: 
     document.addEventListener("visibilitychange", visible);
     return () => { abort.abort(); clearTimeout(initial); clearInterval(timer); document.removeEventListener("visibilitychange", visible); window.removeEventListener("pagehide", cancelReads); window.removeEventListener("beforeunload", cancelReads); };
   }, [refresh]);
-  const value = useMemo<EmailState>(() => ({ data, busy, error, refresh, snapshot: data?.live ?? data?.history[0]?.metrics ?? initialSnapshot, isLive: !!data?.live }), [data, busy, error, refresh, initialSnapshot]);
+  const value = useMemo<EmailState>(() => ({ data, busy, error, refresh, snapshot: data?.live ?? data?.history[0]?.metrics ?? initialSnapshot, isLive: !!data?.live, brake }), [data, busy, error, refresh, initialSnapshot, brake]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useEmail() {

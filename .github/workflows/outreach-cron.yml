@@ -1,22 +1,28 @@
-# Free-plan scheduler. Vercel's Hobby plan only allows daily crons with a loose firing time, so the 15-minute Instantly
-# sync and the Monday digest are triggered from here. GitHub only runs `schedule` workflows from the default branch,
-# so this does nothing until the branch is merged. Repository secrets required: APP_URL (e.g. https://gg-tourney-hub.vercel.app)
-# and CRON_SECRET (the same value as the Vercel CRON_SECRET).
+# cron-job.org is the primary 15-minute safety-check and sync scheduler. Use this workflow as a manual backup only;
+# the Monday digest remains scheduled here. GitHub only runs scheduled workflows from the default branch.
+# Repository secrets required: APP_URL, GG_BOUNCE_BRAKE_SECRET, and CRON_SECRET.
 name: outreach-cron
 on:
   schedule:
-    - cron: "*/15 * * * *"   # Instantly sync
     - cron: "5 13,14,15 * * 1" # Monday digest: 09:05-11:05 New York in either DST regime; the app sends once and only in the window
   workflow_dispatch:
 permissions: {}
 jobs:
   sync:
-    if: github.event.schedule != '5 13,14,15 * * 1'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Sync Instantly
+      - name: Run bounce brake, then Instantly sync (backup)
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          BRAKE_SECRET: ${{ secrets.GG_BOUNCE_BRAKE_SECRET }}
         run: |
-          curl --fail-with-body --silent --show-error --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/cron/instantly-sync"
+          set -euo pipefail
+          test -n "$BRAKE_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            -X POST -H "Authorization: Bearer $BRAKE_SECRET" \
+            -H "X-GG-Trigger: github-backup" \
+            "$APP_URL/api/cron/bounce-brake"
   digest:
     if: github.event.schedule == '5 13,14,15 * * 1'
     runs-on: ubuntu-latest

@@ -1,5 +1,9 @@
 export const isPreviewBot = (agent: string) => /bot|crawler|spider|facebookexternalhit|facebot|slack|discord|linkedin|whatsapp|telegram|skypeuripreview|pinterest|embedly|iframely|preview|headless/i.test(agent);
 
+/** Campaign links are real Email traffic, separate from partner records. */
+export const EMAIL_CAMPAIGN_SLUGS = ["email-trader", "email-general"] as const;
+export function isEmailCampaignSlug(slug: string) { return (EMAIL_CAMPAIGN_SLUGS as readonly string[]).includes(slug); }
+
 export const isTestClick = (slug: string, url?: string, agent = "", marker = "") => /^(example|test)-/i.test(slug) || /gg-outreach-(audit|test)|playwright|headless/i.test(agent) || /^(1|true|audit|test)$/i.test(marker) || !!url && new URL(url).searchParams.getAll("test").includes("1");
 
 export function platformGuess(agent: string, referrer: string) {
@@ -34,5 +38,14 @@ export function preregDestination(slug: string, configured = "https://earningsto
     }
   }
   if (token) url.searchParams.set("gg_click",token);
+  if (isEmailCampaignSlug(slug)) {
+    url.searchParams.set("utm_source", "email");
+    url.searchParams.set("utm_campaign", "gg-oct");
+    url.searchParams.set("utm_content", slug.slice("email-".length));
+    // Only the precomputed hash travels to the registration site, never a raw email.
+    const contact = incoming ? new URL(incoming).searchParams.get("c") : null;
+    url.searchParams.delete("c");
+    if (contact && /^[a-f0-9]{64}$/i.test(contact)) url.searchParams.set("c", contact.toLowerCase());
+  }
   return url.toString();
 }

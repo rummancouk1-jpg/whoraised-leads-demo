@@ -1,7 +1,7 @@
 import "server-only";
 import { GG_CAMPAIGN_ID, bounceCounts, type BounceBrakeStatus } from "@/lib/bounce-brake";
 import { database, initializeDatabase } from "./db";
-import { api, withInstantlyDeadline } from "./instantly";
+import { api, records, withInstantlyDeadline } from "./instantly";
 import { acquireLease, releaseLease } from "./lease";
 
 const RUN = "gg-bounce-brake-run", ALERT = "gg-bounce-brake-alert";
@@ -31,12 +31,14 @@ export async function runBounceBrake(trigger: string, runId: string, provePaused
       if (recent[0]) return { ok: true, ran: false, reason: "Checked within the last minute.", lastChecked: new Date(recent[0].at).toISOString() };
     }
     const result = await withInstantlyDeadline(async () => {
-      const [overview, campaign] = await Promise.all([
-        api("campaigns/analytics/overview", new URLSearchParams({ id: GG_CAMPAIGN_ID })),
+      const [analytics, campaign] = await Promise.all([
+        api("campaigns/analytics", new URLSearchParams({ id: GG_CAMPAIGN_ID })),
         api(`campaigns/${GG_CAMPAIGN_ID}`),
       ]);
       if (typeof campaign.status !== "number") throw new Error("Campaign status is unavailable.");
-      const counts = bounceCounts(overview.emails_sent_count, overview.bounced_count);
+      const row = records(analytics).find(item => item.campaign_id === GG_CAMPAIGN_ID);
+      if (!row) throw new Error("Instantly campaign analytics are unavailable.");
+      const counts = bounceCounts(row.emails_sent_count, row.bounced_count);
       let paused = false;
       let authProof = false;
       if (provePausedAuth) {

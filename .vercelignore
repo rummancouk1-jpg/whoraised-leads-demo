@@ -4,6 +4,14 @@ scripts/
 tests/
 test-results/
 playwright-report/
+campaign-copy-readback.json
+copy-change-tests-2026-10-12.json
 .claude/
 .agents/
 *.tsbuildinfo
+
+# Local credentials and private contact lists must never be deployment source.
+.env*
+!.env.example
+.env.gg-campaign-work/
+data/

@@ -55,3 +55,7 @@ node_modules/
 .env*
 !.env.example
 /evidence/client-readiness/.session
+
+# Private contact lists
+data/*.csv
+.env.gg-campaign-work/

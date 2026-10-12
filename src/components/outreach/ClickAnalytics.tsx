@@ -1,10 +1,12 @@
 "use client";
 import { useOutreach } from "@/contexts/OutreachContext";
+import { useActivity } from "@/contexts/ActivityContext";
 import { leadGroup } from "@/lib/outreach";
 import type { Lead } from "@/types/outreach";
 
 export function ClickAnalytics({ scopedLeads: leads }: { scopedLeads: Lead[] }) {
   const { clicks } = useOutreach();
+  const { data: activity } = useActivity();
   const slugs = new Set(leads.map(l => l.tracked_slug));
   const daily = clicks?.daily.map(d => ({ day: d.day, clicks: (clicks.dailyBySlug ?? []).filter(row => row.day === d.day && slugs.has(row.slug)).reduce((n, row) => n + row.clicks, 0) }));
   const grouped = new Map<string, number>();
@@ -17,8 +19,11 @@ export function ClickAnalytics({ scopedLeads: leads }: { scopedLeads: Lead[] }) 
   const groupRows = [...grouped].map(([group, clicks]) => ({ group, clicks }));
   const maximum = Math.max(1, ...daily?.map(d => d.clicks) ?? []);
   const total = groupRows.reduce((n, g) => n + g.clicks, 0) ?? 0;
+  const stats = activity ? Object.values(activity.stats) : null;
+  const emailClicks = stats?.some(s => s.clicked === null) ? null : stats?.reduce((n, s) => n + (s.clicked ?? 0), 0) ?? null;
+  const combined = emailClicks === null ? null : total + emailClicks;
   return <section className="gg-learning" aria-labelledby="click-title">
-    <div className="gg-section-heading"><div><p className="gg-eyebrow">Creator links</p><h2 id="click-title">Click activity</h2></div><span className="gg-badge">{clicks ? `${total} clicks` : "Loading clicks…"}</span></div>
+    <div className="gg-section-heading"><div><p className="gg-eyebrow">Email & creator links</p><h2 id="click-title">Click activity</h2></div><span className="gg-badge">Total {combined?.toLocaleString() ?? "—"} · Email {emailClicks?.toLocaleString() ?? "—"} · Creator {clicks ? total.toLocaleString() : "—"}</span></div>
     <p className="gg-muted">Visits through creator links. Repeat visits count. Signups: manual · awaiting prereg data.</p>
     <div className="gg-click-grid"><section className="gg-group-card"><h3>Clicks per outreach group</h3>{!clicks ? <p>Loading click data…</p> : !groupRows.length ? <p className="gg-muted">No clicks from real leads yet.</p> : <table><thead><tr><th>Group</th><th>Clicks</th></tr></thead><tbody>{groupRows.map(g => <tr key={g.group}><td>{g.group}</td><td>{g.clicks}</td></tr>)}</tbody></table>}</section>
     <section className="gg-group-card"><h3>Daily clicks · last 30 UTC days</h3><p className="gg-muted">{daily?.reduce((n, d) => n + d.clicks, 0) ?? "—"} clicks in this period</p>

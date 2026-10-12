@@ -50,7 +50,7 @@ export function exactTime(value: TimeInput | null | undefined): string {
     : new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" }).format(parsed.date);
 }
 
-/** "2026-10-19" → "Oct 19". Parsed as UTC so the calendar day never shifts with the viewer's time zone. */
+/** Formats a date-only provider value in UTC so it never shifts with the viewer's time zone. */
 export function shortDay(day: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
 }

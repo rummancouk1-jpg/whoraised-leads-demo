@@ -2,6 +2,7 @@ import config from "@/config/fit-weights.json";
 import { trackedLink } from "./public-links";
 import { isTestClick } from "./click-tracking";
 import { AUDIT_COLUMNS, LEGACY_AUDIT_COLUMNS, BASE_CSV_COLUMNS, CSV_COLUMNS, CONTACT_TYPES, GROUP_NAMES, KINDS, NICHES, PLATFORMS, STAGES, US_FOCUS, type Lead, type Weights } from "@/types/outreach";
+import { tournamentFacts } from "@/config/tournament";
 export const leadGroup = (lead: Lead) => GROUP_NAMES[lead.kind];
 
 /** Reversible display tier; never persisted into workflow fields. */
@@ -27,7 +28,8 @@ export function fitScore(lead: Lead, weights: Weights = DEFAULT_WEIGHTS) {
   return { score: Math.max(0, Math.min(100, Math.round(reasons.reduce((sum, r) => sum + r.points, 0)))), reasons };
 }
 export function generateDraft(lead: Lead, origin: string) {
-  return `Hi ${lead.name} — we're running a free market-prediction tournament Oct 19–Nov 13. One daily pick, longest streak wins $1,000. Think your audience can beat you? We'd like to give you a creator entry and invite your community to compete against you: ${trackedLink(lead.tracked_slug, origin)}`;
+  const facts = tournamentFacts();
+  return `Hi ${lead.name} — we're running a free market-prediction tournament ${facts.range}. ${facts.dailyPick}, longest streak wins ${facts.prize}. Think your audience can beat you? We'd like to give you a creator entry and invite your community to compete against you: ${trackedLink(lead.tracked_slug, origin)}`;
 }
 export function groupResults(leads: Lead[], groupBy: (lead: Lead) => string) {
   const groups = new Map<string, { group: string; leads: number; touched: number; joined: number; signups: number }>();

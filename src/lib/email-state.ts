@@ -1,14 +1,18 @@
 import type { EmailMetrics } from "@/types/email";
+import type { BounceBrakeStatus } from "@/lib/bounce-brake";
+import { firstPicksCloseLabel, tournamentPhase } from "@/config/tournament";
 
-export function sendingState(metrics?: EmailMetrics | null): string {
+export function sendingState(metrics?: EmailMetrics | null, brake?: BounceBrakeStatus | null): string {
   if (!metrics) return "Awaiting campaign data";
   const campaign = metrics.campaign;
-  const start = campaign?.startsOn;
-  const scheduled = !!start && start >= metrics.day;
-  if (!campaign || String(campaign.status) === "0") return `Warming up${scheduled ? ` · sending starts ${start}` : ""}`;
-  if (String(campaign.status) === "2") return "Campaign paused";
-  if (String(campaign.status) === "3") return "Campaign completed";
-  if (scheduled) return `Scheduled · sending starts ${start}`;
-  if (["1", "4"].includes(String(campaign.status))) return "Sending · awaiting today's metrics";
+  const phase = tournamentPhase(Date.parse(metrics.fetchedAt));
+  if (phase.state === "complete" || String(campaign?.status) === "3") return "Tournament complete";
+  if (!campaign || String(campaign.status) === "0") return `Pre-launch · ${firstPicksCloseLabel()}`;
+  if (String(campaign.status) === "2") return brake?.alert?.status === "paused" ? "Paused by bounce brake" : campaign.ready ? "Paused · ready" : "Campaign paused";
+  if (["1", "4"].includes(String(campaign.status))) {
+    const sent = campaign.sentToday == null ? "metrics unavailable" : `${campaign.sentToday.toLocaleString()} sent today`;
+    const bounced = campaign.bounced == null ? "bounces unavailable" : `${campaign.bounced.toLocaleString()} bounced`;
+    return `Campaign live · ${sent} · ${bounced}`;
+  }
   return "Awaiting campaign status";
 }

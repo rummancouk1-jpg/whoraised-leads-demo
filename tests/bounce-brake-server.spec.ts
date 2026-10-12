@@ -29,7 +29,7 @@ function harness() {
   const api = async (endpoint: string) => {
     state.calls.push(endpoint);
     if(endpoint.endsWith('/pause')){state.status=2;return {};}
-    if(endpoint.includes('analytics/overview'))return {emails_sent_count:state.sent,bounced_count:state.bounced};
+    if(endpoint.includes('campaigns/analytics'))return [{campaign_id:rules.GG_CAMPAIGN_ID,emails_sent_count:state.sent,bounced_count:state.bounced}];
     if(state.confirmationFails&&state.calls.some(c=>c.endsWith('/pause'))){state.confirmationFails=false;throw Error('Fixture read failed');}
     return {status:state.status};
   };
@@ -37,7 +37,7 @@ function harness() {
   const compiled={exports:{} as {runBounceBrake:(trigger:string,id:string)=>Promise<Record<string,unknown>>;bounceBrakeStatus:()=>Promise<rules.BounceBrakeStatus>}};
   class Clock extends Date {static now(){return state.now;}}
   const source=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-  const dependencies:Record<string,unknown>={'server-only':{},'@/lib/bounce-brake':rules,'./db':{database:()=>sql,initializeDatabase:async()=>{}},'./instantly':{api,withInstantlyDeadline:(work:()=>unknown)=>work()},'./lease':{acquireLease:async()=>{if(state.locked)return null;state.locked=true;return 'owner';},releaseLease:async()=>{state.locked=false;}}};
+  const dependencies:Record<string,unknown>={'server-only':{},'@/lib/bounce-brake':rules,'./db':{database:()=>sql,initializeDatabase:async()=>{}},'./instantly':{api,records:(value:unknown)=>value,withInstantlyDeadline:(work:()=>unknown)=>work()},'./lease':{acquireLease:async()=>{if(state.locked)return null;state.locked=true;return 'owner';},releaseLease:async()=>{state.locked=false;}}};
   vm.runInNewContext('(function(require,module,exports){'+source+'})',{Date:Clock,process:{env:{VERCEL_ENV:'production',INSTANTLY_CAMPAIGN_ID:rules.GG_CAMPAIGN_ID}},console:{info:()=>{}},URLSearchParams})((id:string)=>{if(!(id in dependencies))throw Error(id);return dependencies[id];},compiled,compiled.exports);
   return {state,...compiled.exports};
 }
