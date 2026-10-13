@@ -21,7 +21,7 @@ test("status line: campaign states and honest failures", () => {
   expect(buildStatusLine({ ...base, snapshot: snap({ campaign: { ...campaign(1), sentToday: 12, bounced: 2 } }) })).toMatchObject({ tone: "ok", rest: ["Sending inboxes · 100% average health", "Campaign live · 12 sent today · 2 bounced"] });
   expect(buildStatusLine({ ...base, snapshot: snap({ campaign: campaign(2) }) })).toMatchObject({ tone: "warn", rest: ["Sending inboxes · 100% average health", "campaign paused"] });
   const brake = { alert: { at: "", sent: 60, bounced: 4, rate: 4/60, status: "paused" as const }, lastCheck: null, lastSuccess: null };
-  expect(buildStatusLine({ ...base, brake, snapshot: snap({ campaign: campaign(2) }) }).rest?.[1]).toBe("paused by bounce brake");
+  expect(buildStatusLine({ ...base, brake, snapshot: snap({ campaign: campaign(2) }) }).rest?.[1]).toBe("Campaign paused by bounce brake — 4 of 60 bounced");
   expect(buildStatusLine({ ...base, snapshot: snap({ inboxes: [inbox("Paused")] }) }).rest?.[0]).toBe("Sending inboxes · 100% average health");
   expect(buildStatusLine({ ...base, snapshot: snap({ inboxes: [] }) }).rest?.[0]).toBe("no sending inboxes connected");
   expect(buildStatusLine({ ...base, email: "unavailable", snapshot: null })).toMatchObject({ tone: "warn", rest: ["couldn't read inbox status"] });

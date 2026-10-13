@@ -6,7 +6,7 @@ import ts from 'typescript';
 import * as rules from '../src/lib/bounce-brake';
 
 function harness() {
-  const state = { now: Date.parse('2026-10-12T10:00:00Z'), status: 2, sent: 0, bounced: 0, calls: [] as string[], runs: [] as {at:string;data:Record<string,unknown>}[], alerts: [] as Record<string,unknown>[], locked: false, confirmationFails: false };
+  const state = { now: Date.parse('2026-10-12T10:00:00Z'), status: 2, sent: 0, bounced: 0, soft: 0, unknown: 0, classifiedFails: false, malformedSummary: false, calls: [] as string[], runs: [] as {at:string;data:Record<string,unknown>}[], alerts: [] as Record<string,unknown>[], locked: false, confirmationFails: false };
   const sql = async (parts: TemplateStringsArray, ...p: unknown[]) => {
     const q = parts.join('?');
     if (q.startsWith('SELECT')) {
@@ -26,10 +26,15 @@ function harness() {
     if(q.startsWith('UPDATE')) {state.alerts[Number(p[0])-1].status=q.includes('pause-unconfirmed')?'pause-unconfirmed':'paused';return [];}
     throw Error('Unexpected SQL');
   };
-  const api = async (endpoint: string) => {
+  const api = async (endpoint: string, query: URLSearchParams) => {
     state.calls.push(endpoint);
     if(endpoint.endsWith('/pause')){state.status=2;return {};}
-    if(endpoint.includes('campaigns/analytics'))return [{campaign_id:rules.GG_CAMPAIGN_ID,emails_sent_count:state.sent,bounced_count:state.bounced}];
+    if(endpoint==='campaigns/analytics/bounces') {
+      expect(query.get('campaign_id')).toBe(rules.GG_CAMPAIGN_ID);
+      if(state.classifiedFails)throw Error('Classified bounces unavailable');
+      return {summary:state.malformedSummary?{total:1}:{total:state.bounced+state.soft+state.unknown,hard:state.bounced,soft:state.soft,unknown:state.unknown}};
+    }
+    if(endpoint.includes('campaigns/analytics'))return [{campaign_id:rules.GG_CAMPAIGN_ID,emails_sent_count:state.sent,bounced_count:state.bounced+state.soft+state.unknown}];
     if(state.confirmationFails&&state.calls.some(c=>c.endsWith('/pause'))){state.confirmationFails=false;throw Error('Fixture read failed');}
     return {status:state.status};
   };
@@ -74,4 +79,20 @@ test('last successful check survives a more recent failure',async()=>{
  h.state.now+=1900000;h.state.runs.push({at:new Date(h.state.now).toISOString(),data:{ok:false,campaign:rules.GG_CAMPAIGN_ID}});
  const status=await h.bounceBrakeStatus();expect(status.lastCheck?.ok).toBe(false);expect(status.lastSuccess?.at).toBe(at);
  expect(rules.brakeIsStale(status.lastSuccess,h.state.now)).toBe(true);
+});
+
+for(const [sent,hard,soft,unknown,paused] of [[59,1,1,0,false],[59,2,0,0,false],[99,5,0,0,false],[100,3,4,1,false],[100,4,0,0,true],[6,6,0,0,true],[1000,6,0,0,true],[100,0,6,6,false]] as const) {
+ test('hard-only provider brake: '+[sent,hard,soft,unknown,paused].join('/'),async()=>{
+  const h=harness();Object.assign(h.state,{status:1,sent,bounced:hard,soft,unknown});
+  expect(await h.runBounceBrake('fixture','')).toMatchObject({bounced:hard,softBounced:soft,unknownBounced:unknown,bounceBasis:'hard',breach:paused,paused});
+  expect(h.state.calls.filter(c=>c.endsWith('/pause'))).toHaveLength(paused?1:0);
+  if(!paused)expect(h.state.alerts).toHaveLength(0);
+ });
+}
+for(const field of ['classifiedFails','malformedSummary'] as const) test('no combined-count fallback when '+field,async()=>{
+ const h=harness();Object.assign(h.state,{status:1,sent:100,bounced:6,[field]:true});
+ const failure = await h.runBounceBrake('fixture','').then(()=>null,e=>String(e));
+ expect(failure).toBeTruthy();
+ expect(h.state.calls.filter(c=>c.endsWith('/pause'))).toHaveLength(0);
+ expect(h.state.runs.at(-1)?.data.ok).toBe(false);expect(h.state.alerts).toHaveLength(0);
 });

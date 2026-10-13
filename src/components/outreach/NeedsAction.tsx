@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useEmail } from "@/contexts/EmailContext";
+import { pausedBrakeAlert, brakePauseCopy } from "@/lib/bounce-brake";
+import { Anchor } from "@/components/ui/AccessibleLink";
 import { useActivity } from "@/contexts/ActivityContext";
 import { useUIState } from "@/contexts/UIContext";
 import { RelTime } from "@/components/ui/RelTime";
@@ -16,19 +19,28 @@ const count = (n: number, one: string, many: string) => `${n.toLocaleString()} $
 export function NeedsAction() {
   const { data, fetchedAt, error, refresh } = useActivity();
   const { openLead } = useUIState();
+  const { brake, snapshot } = useEmail();
+  const pause = pausedBrakeAlert(brake, snapshot?.campaign?.status);
+  const itemCount = (data?.queue.length ?? 0) + (pause ? 1 : 0);
   const [all, setAll] = useState(false);
   const queue: QueueItem[] = data?.queue ?? [];
   const shown = all ? queue : queue.slice(0, VISIBLE);
   const tally = (["reply", "bounce", "followup"] as const).map(k => [k, queue.filter(q => q.kind === k).length] as const).filter(([, n]) => n);
   const summary = tally.map(([k, n]) => k === "reply" ? count(n, "reply", "replies") + " to answer" : k === "bounce" ? count(n, "bounce", "bounces") + " to fix" : count(n, "follow-up", "follow-ups") + " due").join(" · ");
   const sentSomething = Object.values(data?.stats ?? {}).some(s => s.sent > 0);
-  return <section className="gg-needs" aria-labelledby="needs-title" aria-busy={!data && !error}>
+  return <section className="gg-needs" aria-labelledby="needs-title" aria-busy={!data && !error && !pause}>
     <div className="gg-needs-head">
-      <h2 id="needs-title">Needs action today{queue.length > 0 && <span className="gg-count" aria-label={`${queue.length} items`}>{queue.length}</span>}</h2>
+      <h2 id="needs-title">Needs action today{itemCount > 0 && <span className="gg-count" aria-label={`${itemCount} items`}>{itemCount}</span>}</h2>
       <span className="gg-fresh">{data ? <RelTime value={fetchedAt ?? data.generatedAt} prefix="Updated " /> : null}</span>
     </div>
-    {!data ? (error ? <p className="gg-needs-empty" role="alert">Couldn&apos;t read the action queue. It will retry shortly.</p> : <div className="gg-needs-skeleton" aria-hidden="true"><Skeleton className="gg-sk-hero-rest" /><Skeleton className="gg-sk-hero-rest" /></div>)
+    {pause && <ul className="gg-needs-list"><li><Anchor className="gg-needs-item gg-needs-brake" href="/email#bounce-brake">
+      <span className="gg-needs-kind gg-needs-bad"><span className="gg-dot" aria-hidden="true" />Bounce brake</span>
+      <span className="gg-needs-main"><strong>{brakePauseCopy(pause)}</strong><small>Review bounces · <RelTime plain value={pause.at} /></small></span>
+      <ArrowIcon />
+    </Anchor></li></ul>}
+    {!data && pause ? null : !data ? (error ? <p className="gg-needs-empty" role="alert">Couldn&apos;t read the action queue. It will retry shortly.</p> : <div className="gg-needs-skeleton" aria-hidden="true"><Skeleton className="gg-sk-hero-rest" /><Skeleton className="gg-sk-hero-rest" /></div>)
       : !queue.length && (error || data.sync.state === "failing" || data.sync.state === "stale") ? <div className="gg-needs-empty"><p>Can&apos;t confirm what needs you: the last sync is out of date. See the warning above.</p><button className="gg-button gg-secondary" onClick={() => void refresh()}>Retry reading activity</button></div>
+      : !queue.length && pause ? null
       : !queue.length ? <p className="gg-needs-empty">{data.sync.state === "ok" && (sentSomething || data.sync.counts && Number(data.sync.counts.matched) > 0) ? "You're clear. No replies waiting, nothing bounced, no follow-ups due." : "Nothing yet. Replies, bounces and follow-ups appear here once sending starts."}</p>
       : <>
         <p className="gg-needs-summary">{summary}</p>

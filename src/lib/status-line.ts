@@ -1,5 +1,6 @@
 import type { EmailMetrics } from "@/types/email";
 import type { BounceBrakeStatus } from "./bounce-brake";
+import { pausedBrakeAlert, brakePauseCopy } from "./bounce-brake";
 import { firstPicksCloseLabel, tournamentPhase } from "@/config/tournament";
 
 export type StatusTone = "ok" | "info" | "warn" | "idle";
@@ -48,7 +49,7 @@ export function buildStatusLine(input: StatusLineInput): StatusLine {
       const status = String(campaign?.status);
       let send: string;
       if (!campaign) send = `Pre-launch · ${firstPicksCloseLabel()}`;
-      else if (status === "2") { send = input.brake?.alert?.status === "paused" ? "paused by bounce brake" : "campaign paused"; tone = "warn"; }
+      else if (status === "2") { const alert = pausedBrakeAlert(input.brake, campaign?.status); send = alert ? brakePauseCopy(alert) : "campaign paused"; tone = "warn"; }
       else if (status === "3") { send = "tournament complete"; tone = "idle"; }
       else if (["1", "4"].includes(status)) {
         const phase = tournamentPhase(Date.parse(snap.fetchedAt));

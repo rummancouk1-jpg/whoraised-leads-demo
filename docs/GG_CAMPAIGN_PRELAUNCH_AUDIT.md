@@ -290,3 +290,24 @@ The Email view always displays **Bounce brake · Last checked** using the last s
 Only this task's code, tests, verification script, and audit are committed. Existing unrelated workspace changes remain unstaged, including other edits in the shared Instantly adapter. Staged content is checked against local credentials and database-URL patterns; secret values and raw private evidence are excluded.
 
 **GO — the requested bounce-brake scheduler and staleness gates pass. Campaign remains PAUSED; this verdict does not activate it.**
+
+
+## Hard-only, sample-aware bounce brake — October 13, 2026 (Asia/Karachi)
+
+This section supersedes the earlier 50-send / combined-bounce threshold. The brake now pauses only when **(sent >= 100 AND hard bounces / sent > 3%) OR hard bounces >= 6**. Exactly 3% does not trip the percentage rule. Six hard bounces trip at any sample size, including when the rate is at or below 3%.
+
+Source: GET /api/v2/campaigns/analytics supplies emails_sent_count; GET /api/v2/campaigns/analytics/bounces?campaign_id=<configured campaign> supplies summary.hard, summary.soft, summary.unknown and summary.total. The classified endpoint was verified against the provider's application client and a real authenticated GET. The [public campaign analytics reference](https://developer.instantly.ai/api-reference/campaign/get-campaigns-analytics) exposes bounced_count without a hard/soft split, so that combined field is never used to make the new brake decision. Every classified counter must be an integer, nonnegative, no greater than sent, and the categories must sum to total. Missing, malformed or inconsistent classified data records a failed check; it never falls back to combined bounces. New audit records label bounced/rate with bounceBasis=hard and preserve excluded soft and unknown counts separately.
+
+Read-only provider baseline: **59 sent, 2 combined bounces = 1 hard + 1 soft, 0 unknown, campaign status 2 (Paused)**. New-rule decision: **NO TRIP**, hard rate **1.69%**. Even 2 hard / 59 would not trip. The historical 2 / 59 pause event remains intact and is explicitly labeled as using the previous combined count. The campaign was not resumed, edited, sent to, or paused by this verification.
+
+Dashboard behavior: the hero leads with **Campaign paused by bounce brake — 2 of 59 bounced** for the historical event. Needs action today includes the campaign brake event and a keyboard-accessible **Review bounces** link to /email#bounce-brake even when the per-lead queue is empty or unavailable. New pause events explicitly say hard bounced. Brake-event text wraps at narrow widths. The review destination explains the current threshold and retains the owner-only resume instruction.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Unit/server regression suite | PASS — 58 tests | Full npx playwright test; includes old/new sample boundaries, exactly/above 3%, six-count override, mixed hard/soft/unknown, failed classified reads, invalid counters, lease/replay behavior, pause reconciliation and freshness. |
+| TypeScript and targeted ESLint | PASS | npx tsc --noEmit and lint of all changed TypeScript/TSX files. |
+| Production build | PASS | npm run build. |
+| 390 / 820 / 1440, light/dark, normal/reduced motion | PASS locally — 24/24 cases, axe 0 | Historical and hard-only pause fixtures; 48 full-page axe scans across dashboard and review page. Activity failure also preserves the brake action. Final production rerun follows deployment. |
+| Production release and readback | IN PROGRESS | Will record deployment and commit after verification. |
+
+Verification runner: scripts/verify-bounce-brake-dashboard.mjs. Evidence remains in the ignored evidence/gg-bounce-brake-sample-aware directory. The runner blocks all browser API writes; it verifies hero copy, queue event, Review bounces navigation, wrapping/overflow, keyboard focus, theme, reduced motion, browser errors, and full-page axe on both dashboard and review destination. Local fixtures are synthetic because the local database has no selected campaign snapshot. Production fixtures layer browser-only events onto the real read-only email response.

@@ -234,3 +234,10 @@ All ten original audit scripts rerun on the final release: preclient-access exit
 The bounded production runtime-log query returned no error entries in the requested hour. [runtime query](../evidence/client-readiness/runtime-errors.log). Deliberate 404 and injected 503 responses are expected test states.
 
 The temporary session file for this round was removed and its server token hash revoked. The original audit session file was already absent at cleanup. Owner environment files were preserved. This supersedes the historical credential-cleanup limitation above. [cleanup proof](../evidence/client-readiness/session-cleanup.json).
+
+
+## Bounce-brake dashboard follow-up — October 13, 2026
+
+The campaign pause now takes priority in the dashboard hero: **Campaign paused by bounce brake — 2 of 59 bounced**. Needs action today includes the persisted brake event with a **Review bounces** action even when no per-lead items are available. The action opens /email#bounce-brake, where the historical combined count is distinguished from the new hard-only policy. Event text wraps at mobile widths. The campaign remains paused; this change neither resumes nor edits it.
+
+The [campaign audit](GG_CAMPAIGN_PRELAUNCH_AUDIT.md#hard-only-sample-aware-bounce-brake--october-13-2026-asiakarachi) records the hard-only source, threshold boundaries, deployment and final verification. Local matrix: **24/24 PASS** at 390, 820 and 1440 pixels in light/dark and normal/reduced motion, using historical and new hard-only pause events. Full-page axe: **0 violations on both dashboard and review destination in every case**. A failed activity read still shows the campaign brake action. Production verification is recorded in the campaign audit after release.

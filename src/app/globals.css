@@ -488,6 +488,7 @@ label:has(input[type="checkbox"]), label:has(input[type="radio"]) { min-height: 
 .gg-needs-item > svg { flex: none; margin-left: auto; color: var(--text-3); }
 .gg-needs-main { display: grid; min-width: 0; flex: 1; }
 .gg-needs-main strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gg-needs-brake .gg-needs-main strong { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .gg-needs-main small { color: var(--text-2); font-size: var(--step--1); }
 .gg-needs-kind { display: inline-flex; align-items: center; gap: 6px; flex: none; min-width: 5.5rem; font-size: var(--step--1); font-weight: 650; }
 .gg-needs-ok .gg-dot { background: var(--ok); } .gg-needs-bad .gg-dot { background: var(--bad); } .gg-needs-warn .gg-dot { background: var(--warn); }
